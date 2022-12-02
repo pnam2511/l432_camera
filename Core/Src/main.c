@@ -65,15 +65,9 @@ static void MX_SPI3_Init(void);
 FATFS fs; 	// file system
 FIL fil;	// file
 FRESULT fresult; 	// to store the result
-char buffer[1024];	// to store data
+char buffer[128];	// to store data
 
 UINT br, bw;		// file read/write count
-
-/* Capacity related variables */
-FATFS *pfs;
-DWORD fre_clust;
-uint32_t total, free_space;
-
 /* USER CODE END 0 */
 
 /**
@@ -108,8 +102,16 @@ int main(void)
   MX_SPI3_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
-  NocHalLCD_Init();
-  NocHalLCD_ClrScreen();
+  // NocHalLCD_Init();
+  // NocHalLCD_ClrScreen();
+
+  fresult = f_mount(&fs, "/", 1); //0: delay file system mounting until the 1st access to the volume; 1: immediately mount
+  fresult = f_open(&fil, "filemeow.txt", FA_CREATE_ALWAYS | FA_WRITE);
+
+  strcpy(buffer, "Hello from meow!\r\n");
+  fresult = f_write(&fil, buffer, bufsize(buffer), &bw);
+
+  f_close(&fil);
 
   /* USER CODE END 2 */
 

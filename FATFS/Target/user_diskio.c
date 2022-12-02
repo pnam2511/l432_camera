@@ -35,7 +35,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include <string.h>
 #include "ff_gen_drv.h"
-
+#include "fatfs_sd.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 
@@ -81,7 +81,8 @@ DSTATUS USER_initialize (
 )
 {
   /* USER CODE BEGIN INIT */
-    return SD_disk_initialize(pdrv);
+    Stat = SD_disk_initialize(pdrv);
+    return Stat;
   /* USER CODE END INIT */
 }
 
@@ -95,7 +96,8 @@ DSTATUS USER_status (
 )
 {
   /* USER CODE BEGIN STATUS */
-    return SD_disk_status(pdrv);
+    Stat = SD_disk_status(pdrv);
+    return Stat;
   /* USER CODE END STATUS */
 }
 
