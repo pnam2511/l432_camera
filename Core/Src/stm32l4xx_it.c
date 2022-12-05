@@ -55,7 +55,7 @@ uint32_t currentMillis = 0;
 uint8_t start_capture = 0;
 
 volatile uint8_t FatFsCnt = 0;
-volatile uint16_t Timer1, Timer2;
+volatile uint8_t Timer1, Timer2;
 
 void SDTimer_Handler(void)
 {

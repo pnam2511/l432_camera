@@ -1,8 +1,6 @@
 #ifndef __FATFS_SD_H
 #define __FATFS_SD_H
 
-#include "main.h"
-
 /* Definitions for MMC/SDC command */
 #define CMD0     (0x40+0)     	/* GO_IDLE_STATE */
 #define CMD1     (0x40+1)     	/* SEND_OP_COND */
@@ -20,25 +18,13 @@
 #define CMD55    (0x40+55)    	/* APP_CMD */
 #define CMD58    (0x40+58)    	/* READ_OCR */
 
-/* MMC card type flags (MMC_GET_TYPE) */
-#define CT_MMC		0x01		/* MMC ver 3 */
-#define CT_SD1		0x02		/* SD ver 1 */
-#define CT_SD2		0x04		/* SD ver 2 */
-#define CT_SDC		0x06		/* SD */
-#define CT_BLOCK	0x08		/* Block addressing */
+DSTATUS SD_disk_initialize (BYTE pdrv);
+DSTATUS SD_disk_status (BYTE pdrv);
+DRESULT SD_disk_read (BYTE pdrv, BYTE* buff, DWORD sector, UINT count);
+DRESULT SD_disk_write (BYTE pdrv, const BYTE* buff, DWORD sector, UINT count);
+DRESULT SD_disk_ioctl (BYTE pdrv, BYTE cmd, void* buff);
 
-/* Functions */
-DSTATUS SD_disk_initialize(BYTE pdrv);
-DSTATUS SD_disk_status(BYTE pdrv);
-DRESULT SD_disk_read(BYTE pdrv, BYTE* buff, DWORD sector, UINT count);
-DRESULT SD_disk_write(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count);
-DRESULT SD_disk_ioctl(BYTE pdrv, BYTE cmd, void* buff);
+#define SPI_TIMEOUT 1000
 
-#define SPI_TIMEOUT 100
-
-extern SPI_HandleTypeDef 	hspi3;
-#define HSPI_SDCARD		 	&hspi3
-#define	SD_CS_PORT			SD_CS_GPIO_Port
-#define SD_CS_PIN			SD_CS_Pin
 
 #endif

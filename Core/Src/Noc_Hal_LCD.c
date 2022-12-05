@@ -126,8 +126,9 @@ void NocHalLCD_ClrScreen(void)
   CS_HIGH();
 }
 
-void NocHalLCD_DisplayImage(const uint8_t *image)
+void NocHalLCD_DisplayImage(const uint16_t *image)
 {
+  CS_LOW();
   NocHalLCD_SetWindowAddr(0, 0, 128, 160);
   for(int i = 0; i < (160*128*BYTES_PER_PIXEL); i++)
   {

@@ -32,6 +32,6 @@
 void NocHalLCD_Init(void /* struct */);
 void NocHalLCD_SetWindowAddr(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
 void NocHalLCD_ClrScreen(void);
-void NocHalLCD_DisplayImage(const uint8_t *image);
+void NocHalLCD_DisplayImage(const uint16_t *image);
 
 #endif /* _NOC_HAL_LCD_H_ */

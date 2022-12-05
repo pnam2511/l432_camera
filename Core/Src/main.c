@@ -24,7 +24,11 @@
 /* USER CODE BEGIN Includes */
 #include "Noc_Hal_LCD.h"
 #include "fatfs_sd.h"
+#include "tjpgd.h"
 #include "string.h"
+
+#include <stdio.h>
+#include "retarget.h"
 
 /* USER CODE END Includes */
 
@@ -47,6 +51,8 @@ I2C_HandleTypeDef hi2c1;
 
 SPI_HandleTypeDef hspi3;
 
+UART_HandleTypeDef huart2;
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -56,21 +62,52 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SPI3_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
+
+static unsigned int tjd_input (	/* Returns number of bytes read (zero on error) */
+	JDEC* jd,			/* Decompressor object */
+	uint8_t* buff,		/* Pointer to the read buffer (null to remove data) */
+	unsigned int nd		/* Number of bytes to read/skip from input stream */
+);
+
+static int tjd_output (
+	JDEC* jd,		/* Decompressor object of current session */
+	void* bitmap,	/* Bitmap data to be output */
+	JRECT* rect		/* Rectangular region to output */
+);
+
+void load_jpg (
+	FIL* fp,		/* Open file object to load */
+	void *work,		/* Pointer to the working buffer (must be 4-byte aligned) */
+	UINT sz_work	/* Size of the working buffer (must be power of 2) */
+);
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/* FATFS variables decaration */
 FATFS fs; 	// file system
 FIL fil;	// file
 DIR dir;
 FRESULT fresult; 	// to store the result
 FILINFO Finfo;
+// char string[128];	// to store data
 
-char buffer[128];	// to store data
+BYTE Buff[4096]  __attribute__ ((aligned(2)));		/* Working buffer */
 
 UINT br, bw;		// file read/write count
+
+/* Dot screen size */
+#define DISP_XS	128
+#define DISP_YS	160
+
+/*TJPEG variables decaration */
+JDEC jd;		/* Decompression object (70 bytes) */
+JRESULT rc;
+
 /* USER CODE END 0 */
 
 /**
@@ -104,22 +141,54 @@ int main(void)
   MX_I2C1_Init();
   MX_SPI3_Init();
   MX_FATFS_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  // NocHalLCD_Init();
-  // NocHalLCD_ClrScreen();
 
-  fresult = f_mount(&fs, "/", 1); //0: delay file system mounting until the 1st access to the volume; 1: immediately mount
-  if(f_opendir(&dir, "/") == FR_OK)
+  RetargetInit(&huart2);
+
+  NocHalLCD_Init();
+  NocHalLCD_ClrScreen();
+
+  printf("Testing...\r\n");
+
+  // https://github.com/cbm80amiga/JpgDecoder_STM
+
+  if(f_mount(&fs, "/", 1) == FR_OK) //0: delay file system mounting until the 1st access to the volume; 1: immediately mount
   {
-    //https://community.st.com/s/question/0D53W00000wzjSmSAI/fatfs-show-all-files
-    printf("Open directory...");
-    while(1)
-    {
-      fresult = f_readdir(&dir, &Finfo);
-      if((fresult != FR_OK) || (Finfo.fname[0] == 0))
-        break;
-    }
+	printf("Mount SD Card sucessfully\r\n");
+
+/*	if(f_opendir(&dir, "/") == FR_OK)
+	{
+		//https://community.st.com/s/question/0D53W00000wzjSmSAI/fatfs-show-all-files
+		printf("Open directory...\r\n");
+		while(1)
+		{
+			fresult = f_readdir(&dir, &Finfo);
+			if((fresult != FR_OK) || (Finfo.fname[0] == 0))
+			  break;
+
+	        sprintf(string, "%c%c%c%c %10d %s/%s\r\n",
+	          ((Finfo.fattrib & AM_DIR) ? 'D' : '-'),
+	          ((Finfo.fattrib & AM_RDO) ? 'R' : '-'),
+	          ((Finfo.fattrib & AM_SYS) ? 'S' : '-'),
+	          ((Finfo.fattrib & AM_HID) ? 'H' : '-'),
+	          (int)Finfo.fsize, "/", Finfo.fname);
+
+	        printf(string);
+		}
+	}*/
+
+	if (f_open(&fil, "title.jpg", FA_READ) == FR_OK)
+	{
+		printf("File read OK!!\r\n");
+		load_jpg(&fil, Buff, sizeof Buff);
+	}
   }
+
+  /* Unmount SDCARD */
+  if(f_mount(NULL, "/", 1) == FR_OK)
+	printf("SD CARD UNMOUNTED successfully...\r\n");
+
 
   /* USER CODE END 2 */
 
@@ -272,6 +341,41 @@ static void MX_SPI3_Init(void)
 }
 
 /**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -282,8 +386,8 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);
@@ -319,6 +423,74 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+static unsigned int tjd_input (	/* Returns number of bytes read (zero on error) */
+	JDEC* jd,			/* Decompressor object */
+	uint8_t* buff,		/* Pointer to the read buffer (null to remove data) */
+	unsigned int nd		/* Number of bytes to read/skip from input stream */
+)
+{
+	UINT rb;
+	FIL *fp = (FIL*)jd->device;
+
+	if (buff)
+	{	/* Read nd bytes from the input strem */
+		f_read(fp, buff, nd, &rb);
+		return rb;	/* Returns number of bytes could be read */
+	}
+	else
+	{	/* Skip nd bytes on the input stream */
+		return (f_lseek(fp, f_tell(fp) + nd) == FR_OK) ? nd : 0;
+	}
+}
+
+static int tjd_output (
+	JDEC* jd,		/* Decompressor object of current session */
+	void* bitmap,	/* Bitmap data to be output */
+	JRECT* rect		/* Rectangular region to output */
+)
+{
+	jd = jd;	/* Suppress warning (device identifier is not needed in this appication) */
+
+/*	 Check user interrupt at left end
+	if (!rect->left) return 0;	 Abort decompression */
+
+	/* Put the rectangular into the display device */
+	NocHalLCD_DisplayImage((uint16_t*)bitmap);
+
+	return 1;	/* Continue decompression */
+}
+
+void load_jpg (
+	FIL* fp,		/* Open file object to load */
+	void *work,		/* Pointer to the working buffer (must be 4-byte aligned) */
+	UINT sz_work	/* Size of the working buffer (must be power of 2) */
+)
+{
+	JDEC jd;		/* Decompression object (70 bytes) */
+	JRESULT rc;
+	BYTE scale;
+
+	/* Prepare to decompress the file */
+	rc = jd_prepare(&jd, tjd_input, work, sz_work, fp);
+	if (rc == JDR_OK)
+	{
+		printf("jd_prepare -> Done!\r\n");
+		/* Determine scale factor */
+		for (scale = 0; scale < 3; scale++)
+		{
+			if ((jd.width >> scale) <= DISP_XS && (jd.height >> scale) <= DISP_YS)
+				break;
+		}
+
+		/* Start to decompress the JPEG file */
+		rc = jd_decomp(&jd, tjd_output, scale);	/* Start decompression */
+		printf("Decompression result: %d\r\n", rc);
+	}
+	else
+	{
+		printf("Error: %d", rc);
+	}
+}
 /* USER CODE END 4 */
 
 /**
