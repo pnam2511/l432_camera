@@ -64,7 +64,10 @@ static void MX_SPI3_Init(void);
 /* USER CODE BEGIN 0 */
 FATFS fs; 	// file system
 FIL fil;	// file
+DIR dir;
 FRESULT fresult; 	// to store the result
+FILINFO Finfo;
+
 char buffer[128];	// to store data
 
 UINT br, bw;		// file read/write count
@@ -106,12 +109,17 @@ int main(void)
   // NocHalLCD_ClrScreen();
 
   fresult = f_mount(&fs, "/", 1); //0: delay file system mounting until the 1st access to the volume; 1: immediately mount
-  fresult = f_open(&fil, "filemeow.txt", FA_CREATE_ALWAYS | FA_WRITE);
-
-  strcpy(buffer, "Hello from meow!\r\n");
-  fresult = f_write(&fil, buffer, bufsize(buffer), &bw);
-
-  f_close(&fil);
+  if(f_opendir(&dir, "/") == FR_OK)
+  {
+    //https://community.st.com/s/question/0D53W00000wzjSmSAI/fatfs-show-all-files
+    printf("Open directory...");
+    while(1)
+    {
+      fresult = f_readdir(&dir, &Finfo);
+      if((fresult != FR_OK) || (Finfo.fname[0] == 0))
+        break;
+    }
+  }
 
   /* USER CODE END 2 */
 
