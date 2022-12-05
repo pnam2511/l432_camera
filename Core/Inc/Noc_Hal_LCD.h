@@ -2,6 +2,32 @@
 #define _NOC_HAL_LCD_H_
 
 #include "stm32l432xx.h"
+#include <string.h>
+
+/*void load_jpg (
+	FIL* fp,		 Open file object to load
+	void *work,		 Pointer to the working buffer (must be 4-byte aligned)
+	UINT sz_work	 Size of the working buffer (must be power of 2)
+);*/
+
+/* Dot screen size */
+#define DISP_XS	128
+#define DISP_YS	160
+
+/* Color values */
+#define RGB16(r,g,b) (((r << 8) & 0xF800)|((g << 3) & 0x07E0)|(b >> 3))
+#define	C_BLACK		RGB16(0,0,0)
+#define	C_BLUE		RGB16(0,0,255)
+#define	C_RED		RGB16(255,0,0)
+#define	C_MAGENTA	RGB16(255,0,255)
+#define	C_GREEN		RGB16(0,255,0)
+#define	C_CYAN		RGB16(0,255,255)
+#define	C_YELLOW	RGB16(255,255,0)
+#define	C_WHITE		RGB16(255,255,255)
+#define	C_LGRAY		RGB16(160,160,160)
+#define	C_GRAY		RGB16(128,128,128)
+
+extern const uint8_t Font5x7[];	/* Font image (FONTX2 format) */
 
 /* Define SPI pin mode */
 #define SPI_Cmd_Mode()  HAL_GPIO_WritePin(LCD_RS_GPIO_Port,LCD_RS_Pin,GPIO_PIN_RESET);
@@ -12,7 +38,7 @@
 
 /* LCD Parameters define */
 #define BYTES_PER_PIXEL   2  //16bit depth 5-6-5 => 2 bytes = 1 pixel
-#define MAX_IMAGE_SIZE    160*128*BYTES_PER_PIXEL
+#define MAX_IMAGE_SIZE    (160*128*BYTES_PER_PIXEL)
 
 /* REGISTER DEFINE */
 #define ST7735_SWRESET   0x01
@@ -33,5 +59,11 @@ void NocHalLCD_Init(void /* struct */);
 void NocHalLCD_SetWindowAddr(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
 void NocHalLCD_ClrScreen(void);
 void NocHalLCD_DisplayImage(const uint16_t *image);
+
+/* Text functions */
+void disp_font_face (const uint8_t *font);
+void disp_font_color (uint32_t color);
+void disp_locate (int col, int row);
+void disp_putc (uint8_t chr);
 
 #endif /* _NOC_HAL_LCD_H_ */

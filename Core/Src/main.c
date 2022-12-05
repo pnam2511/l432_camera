@@ -65,24 +65,6 @@ static void MX_SPI3_Init(void);
 static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
-static unsigned int tjd_input (	/* Returns number of bytes read (zero on error) */
-	JDEC* jd,			/* Decompressor object */
-	uint8_t* buff,		/* Pointer to the read buffer (null to remove data) */
-	unsigned int nd		/* Number of bytes to read/skip from input stream */
-);
-
-static int tjd_output (
-	JDEC* jd,		/* Decompressor object of current session */
-	void* bitmap,	/* Bitmap data to be output */
-	JRECT* rect		/* Rectangular region to output */
-);
-
-void load_jpg (
-	FIL* fp,		/* Open file object to load */
-	void *work,		/* Pointer to the working buffer (must be 4-byte aligned) */
-	UINT sz_work	/* Size of the working buffer (must be power of 2) */
-);
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -94,15 +76,11 @@ FIL fil;	// file
 DIR dir;
 FRESULT fresult; 	// to store the result
 FILINFO Finfo;
-// char string[128];	// to store data
+char string[128];	// to store data
 
-BYTE Buff[4096]  __attribute__ ((aligned(2)));		/* Working buffer */
+//BYTE Buff[4096]  __attribute__ ((aligned(2)));		/* Working buffer */
 
 UINT br, bw;		// file read/write count
-
-/* Dot screen size */
-#define DISP_XS	128
-#define DISP_YS	160
 
 /*TJPEG variables decaration */
 JDEC jd;		/* Decompression object (70 bytes) */
@@ -149,6 +127,8 @@ int main(void)
   NocHalLCD_Init();
   NocHalLCD_ClrScreen();
 
+  disp_putc("A");
+
   printf("Testing...\r\n");
 
   // https://github.com/cbm80amiga/JpgDecoder_STM
@@ -157,7 +137,7 @@ int main(void)
   {
 	printf("Mount SD Card sucessfully\r\n");
 
-/*	if(f_opendir(&dir, "/") == FR_OK)
+	if(f_opendir(&dir, "/") == FR_OK)
 	{
 		//https://community.st.com/s/question/0D53W00000wzjSmSAI/fatfs-show-all-files
 		printf("Open directory...\r\n");
@@ -176,13 +156,13 @@ int main(void)
 
 	        printf(string);
 		}
-	}*/
+	}
 
-	if (f_open(&fil, "title.jpg", FA_READ) == FR_OK)
+/*	if (f_open(&fil, "title.jpg", FA_READ) == FR_OK)
 	{
 		printf("File read OK!!\r\n");
 		load_jpg(&fil, Buff, sizeof Buff);
-	}
+	}*/
   }
 
   /* Unmount SDCARD */
@@ -423,74 +403,6 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-static unsigned int tjd_input (	/* Returns number of bytes read (zero on error) */
-	JDEC* jd,			/* Decompressor object */
-	uint8_t* buff,		/* Pointer to the read buffer (null to remove data) */
-	unsigned int nd		/* Number of bytes to read/skip from input stream */
-)
-{
-	UINT rb;
-	FIL *fp = (FIL*)jd->device;
-
-	if (buff)
-	{	/* Read nd bytes from the input strem */
-		f_read(fp, buff, nd, &rb);
-		return rb;	/* Returns number of bytes could be read */
-	}
-	else
-	{	/* Skip nd bytes on the input stream */
-		return (f_lseek(fp, f_tell(fp) + nd) == FR_OK) ? nd : 0;
-	}
-}
-
-static int tjd_output (
-	JDEC* jd,		/* Decompressor object of current session */
-	void* bitmap,	/* Bitmap data to be output */
-	JRECT* rect		/* Rectangular region to output */
-)
-{
-	jd = jd;	/* Suppress warning (device identifier is not needed in this appication) */
-
-/*	 Check user interrupt at left end
-	if (!rect->left) return 0;	 Abort decompression */
-
-	/* Put the rectangular into the display device */
-	NocHalLCD_DisplayImage((uint16_t*)bitmap);
-
-	return 1;	/* Continue decompression */
-}
-
-void load_jpg (
-	FIL* fp,		/* Open file object to load */
-	void *work,		/* Pointer to the working buffer (must be 4-byte aligned) */
-	UINT sz_work	/* Size of the working buffer (must be power of 2) */
-)
-{
-	JDEC jd;		/* Decompression object (70 bytes) */
-	JRESULT rc;
-	BYTE scale;
-
-	/* Prepare to decompress the file */
-	rc = jd_prepare(&jd, tjd_input, work, sz_work, fp);
-	if (rc == JDR_OK)
-	{
-		printf("jd_prepare -> Done!\r\n");
-		/* Determine scale factor */
-		for (scale = 0; scale < 3; scale++)
-		{
-			if ((jd.width >> scale) <= DISP_XS && (jd.height >> scale) <= DISP_YS)
-				break;
-		}
-
-		/* Start to decompress the JPEG file */
-		rc = jd_decomp(&jd, tjd_output, scale);	/* Start decompression */
-		printf("Decompression result: %d\r\n", rc);
-	}
-	else
-	{
-		printf("Error: %d", rc);
-	}
-}
 /* USER CODE END 4 */
 
 /**
