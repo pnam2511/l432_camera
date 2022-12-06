@@ -2,7 +2,10 @@
 #define _NOC_HAL_LCD_H_
 
 #include "stm32l432xx.h"
+#include <stdio.h>
 #include <string.h>
+#include "ff.h"
+#include "tjpgd.h"
 
 typedef struct
 {
@@ -11,11 +14,11 @@ typedef struct
 	uint8_t  size;
 } FontDef;
 
-/*void load_jpg (
-	FIL* fp,		 Open file object to load
-	void *work,		 Pointer to the working buffer (must be 4-byte aligned)
-	UINT sz_work	 Size of the working buffer (must be power of 2)
-);*/
+void load_jpg (
+	FIL* fp,		 /* Open file object to load */
+	void *work,		 /* Pointer to the working buffer (must be 4-byte aligned) */
+	UINT sz_work	 /* Size of the working buffer (must be power of 2) */
+);
 
 /* Dot screen size */
 #define DISP_XS	128
@@ -66,7 +69,7 @@ void NocHalLCD_DrawPixel(uint16_t color);
 void NocHalLCD_Init(void /* struct */);
 void NocHalLCD_SetWindowAddr(uint8_t xStart, uint8_t xEnd, uint8_t yStart, uint8_t yEnd);
 void NocHalLCD_ClrScreen(void);
-void NocHalLCD_DisplayImage(const uint16_t *image);
+void NocHalLCD_DisplayImage(uint8_t left, uint8_t right, uint8_t top, uint8_t bottom, const uint16_t *image);
 
 /* Text functions */
 void NocHalLCD_SetOSDFont(const uint8_t *font);

@@ -77,7 +77,7 @@ DIR dir;
 FRESULT fresult; 	// to store the result
 FILINFO Finfo;
 
-//BYTE Buff[4096]  __attribute__ ((aligned(4)));		/* Working buffer */
+BYTE Buff[4096]  __attribute__ ((aligned(4)));		/* Working buffer */
 
 /* USER CODE END 0 */
 
@@ -131,7 +131,7 @@ int main(void)
   {
 	printf("Mount SD Card sucessfully\r\n");
 
-	if(f_opendir(&dir, "/") == FR_OK)
+/*	if(f_opendir(&dir, "/") == FR_OK)
 	{
 		//https://community.st.com/s/question/0D53W00000wzjSmSAI/fatfs-show-all-files
 		printf("Open directory...\r\n");
@@ -148,13 +148,17 @@ int main(void)
 	          ((Finfo.fattrib & AM_HID) ? 'H' : '-'),
 	          (int)Finfo.fsize, "/", Finfo.fname);
 		}
-	}
+	}*/
 
-/*	if (f_open(&fil, "title.jpg", FA_READ) == FR_OK)
+	if (f_open(&fil, "title.jpg", FA_READ) == FR_OK)
 	{
 		printf("File read OK!!\r\n");
 		load_jpg(&fil, Buff, sizeof Buff);
-	}*/
+	}
+	else
+	{
+		printf("Reading Error!!\r\n");
+	}
   }
   else
   {

@@ -146,14 +146,58 @@ void NocHalLCD_ClrScreen(void)
   CS_HIGH();
 }
 
-void NocHalLCD_DisplayImage(const uint16_t *image)
+void NocHalLCD_DisplayImage(uint8_t left, uint8_t right, uint8_t top, uint8_t bottom, const uint16_t *image)
 {
+  int MaskT, MaskL, MaskR, MaskB;	/* Active drawing area */
+
+  int yc, xc, xl, xs;
+  uint16_t pd;
+
+  MaskL = 0;
+  MaskR = DISP_XS - 1;
+  MaskT = 0;
+  MaskB = DISP_YS - 1;
+
+  if (left > right || top > bottom) return; 	/* Check varidity */
+  if (left > MaskR || right < MaskL  || top > MaskB || bottom < MaskT) return;	/* Check if in active area */
+
+  yc = bottom - top + 1;			/* Vertical size */
+  xc = right - left + 1; xs = 0;	/* Horizontal size and skip */
+
+	if (top < MaskT) {		/* Clip top of source image if it is out of active area */
+		image += xc * (MaskT - top);
+		yc -= MaskT - top;
+		top = MaskT;
+	}
+	if (bottom > MaskB) {	/* Clip bottom of source image if it is out of active area */
+		yc -= bottom - MaskB;
+		bottom = MaskB;
+	}
+	if (left < MaskL) {		/* Clip left of source image if it is out of active area */
+		image += MaskL - left;
+		xc -= MaskL - left;
+		xs += MaskL - left;
+		left = MaskL;
+	}
+	if (right > MaskR) {	/* Clip right of source image it is out of active area */
+		xc -= right - MaskR;
+		xs += right - MaskR;
+		right = MaskR;
+	}
+
   CS_LOW();
-  NocHalLCD_SetWindowAddr(0, 0, 128, 160);
-  for(int i = 0; i < (160*128*BYTES_PER_PIXEL); i++)
-  {
-	NocHalLCD_WriteByte(image[i]);
-  }
+
+  NocHalLCD_SetWindowAddr(left, right, top, bottom);
+
+	do {	/* Send image data */
+		xl = xc;
+		do {
+			pd = *image++;
+			NocHalLCD_DrawPixel(pd);
+		} while (--xl);
+		image += xs;
+	} while (--yc);
+
   CS_HIGH();
 }
 
@@ -240,71 +284,75 @@ void NocHalLCD_WriteString(uint16_t x, uint16_t y, const char* str, uint32_t col
 
 	CS_HIGH();
 }
-/*static unsigned int tjd_input (	 Returns number of bytes read (zero on error)
-	JDEC* jd,			 Decompressor object
-	uint8_t* buff,		 Pointer to the read buffer (null to remove data)
-	unsigned int nd		 Number of bytes to read/skip from input stream
+
+/* Returns number of bytes read (zero on error) */
+static unsigned int tjd_input (
+	JDEC* jd,			 /* Decompressor object */
+	uint8_t* buff,		 /* Pointer to the read buffer (null to remove data) */
+	unsigned int nd		 /* Number of bytes to read/skip from input stream */
 )
 {
 	UINT rb;
 	FIL *fp = (FIL*)jd->device;
 
 	if (buff)
-	{	 Read nd bytes from the input strem
+	{
+		/* Read nd bytes from the input stream */
 		f_read(fp, buff, nd, &rb);
-		return rb;	 Returns number of bytes could be read
+		return rb;	 /* Returns number of bytes could be read */
 	}
 	else
-	{	 Skip nd bytes on the input stream
+	{
+		/* Skip nd bytes on the input stream */
 		return (f_lseek(fp, f_tell(fp) + nd) == FR_OK) ? nd : 0;
 	}
 }
 
 static int tjd_output (
-	JDEC* jd,		 Decompressor object of current session
-	void* bitmap,	 Bitmap data to be output
-	JRECT* rect		 Rectangular region to output
+	JDEC* jd,		 /* Decompressor object of current session */
+	void* bitmap,	 /* Bitmap data to be output */
+	JRECT* rect		 /* Rectangular region to output */
 )
 {
-	jd = jd;	 Suppress warning (device identifier is not needed in this appication)
+	UNUSED(jd);
 
-	 Check user interrupt at left end
-	if (!rect->left) return 0;	 Abort decompression
+	/* Check user interrupt at left end */
+	if (!rect->left) return 0;	 /* Abort decompression */
 
-	 Put the rectangular into the display device
-	NocHalLCD_DisplayImage((uint16_t*)bitmap);
+	/* Put the rectangular into the display device */
+	NocHalLCD_DisplayImage(rect->left, rect->right, rect->top, rect->bottom, (uint16_t*)bitmap);
 
-	return 1;	 Continue decompression
+	return 1;	 /* Continue decompression */
 }
 
 void load_jpg (
-	FIL* fp,		 Open file object to load
-	void *work,		 Pointer to the working buffer (must be 4-byte aligned)
-	UINT sz_work	 Size of the working buffer (must be power of 2)
+	FIL* fp,		 /* Open file object to load */
+	void *work,		 /* Pointer to the working buffer (must be 4-byte aligned) */
+	UINT sz_work	 /* Size of the working buffer (must be power of 2) */
 )
 {
-	JDEC jd;		 Decompression object (70 bytes)
+	JDEC jd;		 /* Decompression object (70 bytes) */
 	JRESULT rc;
 	BYTE scale;
 
-	 Prepare to decompress the file
+	/* Prepare to decompress the file */
 	rc = jd_prepare(&jd, tjd_input, work, sz_work, fp);
 	if (rc == JDR_OK)
 	{
 		printf("jd_prepare -> Done!\r\n");
-		 Determine scale factor
+		/* Determine scale factor */
 		for (scale = 0; scale < 3; scale++)
 		{
 			if ((jd.width >> scale) <= DISP_XS && (jd.height >> scale) <= DISP_YS)
 				break;
 		}
 
-		 Start to decompress the JPEG file
-		rc = jd_decomp(&jd, tjd_output, scale);	 Start decompression
+		/* Start to decompress the JPEG file */
+		rc = jd_decomp(&jd, tjd_output, scale);	 /* Start decompression */
 		printf("Decompression result: %d\r\n", rc);
 	}
 	else
 	{
 		printf("Error: %d", rc);
 	}
-}*/
+}
