@@ -4,6 +4,13 @@
 #include "stm32l432xx.h"
 #include <string.h>
 
+typedef struct
+{
+	uint16_t width;
+	uint16_t height;
+	uint8_t  size;
+} FontDef;
+
 /*void load_jpg (
 	FIL* fp,		 Open file object to load
 	void *work,		 Pointer to the working buffer (must be 4-byte aligned)
@@ -55,15 +62,15 @@ extern const uint8_t Font5x7[];	/* Font image (FONTX2 format) */
 #define ST7735_NORON     0x13
 #define ST7735_DISPON    0x29
 
+void NocHalLCD_DrawPixel(uint16_t color);
 void NocHalLCD_Init(void /* struct */);
-void NocHalLCD_SetWindowAddr(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
+void NocHalLCD_SetWindowAddr(uint8_t xStart, uint8_t xEnd, uint8_t yStart, uint8_t yEnd);
 void NocHalLCD_ClrScreen(void);
 void NocHalLCD_DisplayImage(const uint16_t *image);
 
 /* Text functions */
-void disp_font_face (const uint8_t *font);
-void disp_font_color (uint32_t color);
-void disp_locate (int col, int row);
-void disp_putc (uint8_t chr);
+void NocHalLCD_SetOSDFont(const uint8_t *font);
+void NocHalLCD_WriteChar(uint16_t x, uint16_t y, uint8_t chr, uint32_t color);
+void NocHalLCD_WriteString(uint16_t x, uint16_t y, const char* str, uint32_t color);
 
 #endif /* _NOC_HAL_LCD_H_ */

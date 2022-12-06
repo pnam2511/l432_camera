@@ -1121,7 +1121,6 @@ JRESULT jd_decomp (
 	uint8_t scale							/* Output de-scaling factor (0 to 3) */
 )
 {
-	printf("Staring jd decompression~~\r\n");
 	unsigned int x, y, mx, my;
 	uint16_t rst, rsc;
 	JRESULT rc;

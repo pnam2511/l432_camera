@@ -5,9 +5,9 @@
 
 #define ST7735_SPI_PORT hspi3
 
-static int LocX, LocY;
-static uint32_t ChrColor;		/* Current character color ((bg << 16) + fg) */
 static const uint8_t *FontS;	/* Current font (ANK) */
+
+FontDef font;
 
 static void NocHalLCD_WriteByte(uint8_t ucdata)
 {
@@ -43,6 +43,17 @@ static void NocHalLCD_SendCommand(uint8_t cmd)
 
   return ucdata[1];  // ucdata[0] is dummy read
 }*/
+
+void NocHalLCD_DrawPixel(uint16_t color)
+{
+  SPI_Data_Mode();
+  CS_LOW();
+
+  uint8_t ucdata[] = {color >> 8, color & 0xFF};
+  HAL_SPI_Transmit(&ST7735_SPI_PORT, ucdata, sizeof(ucdata), HAL_MAX_DELAY);
+
+  CS_HIGH();
+}
 
 void NocHalLCD_Init(void /* struct */)
 {
@@ -103,34 +114,35 @@ void NocHalLCD_Init(void /* struct */)
 
   CS_HIGH();
 
-  disp_font_face(Font5x7);	/* Select font */
-  disp_font_color(C_WHITE);
+  NocHalLCD_SetOSDFont(Font5x7);	/* Select font */
 }
 
-void NocHalLCD_SetWindowAddr(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
+void NocHalLCD_SetWindowAddr(uint8_t xStart, uint8_t xEnd, uint8_t yStart, uint8_t yEnd)
 {
   NocHalLCD_SendCommand(ST7735_CASET); // Column addr set
   NocHalLCD_WriteByte(0x00);
-  NocHalLCD_WriteByte(x0);     // XSTART
+  NocHalLCD_WriteByte(xStart);
   NocHalLCD_WriteByte(0x00);
-  NocHalLCD_WriteByte(x1);     // XEND
+  NocHalLCD_WriteByte(xEnd);
 
   NocHalLCD_SendCommand(ST7735_RASET); // Row addr set
   NocHalLCD_WriteByte(0x00);
-  NocHalLCD_WriteByte(y0);     // YSTART
+  NocHalLCD_WriteByte(yStart);
   NocHalLCD_WriteByte(0x00);
-  NocHalLCD_WriteByte(y1);     // YEND
+  NocHalLCD_WriteByte(yEnd);
 
   NocHalLCD_SendCommand(ST7735_RAMWR); // write to RAM
 }
 
 void NocHalLCD_ClrScreen(void)
 {
-  NocHalLCD_SetWindowAddr(0, 0, 128, 160);
-  for(int i = 0; i < (160*128*BYTES_PER_PIXEL); i++)
+  NocHalLCD_SetWindowAddr(0, 128, 0, 160);
+
+  for(int i = 0; i < (160*128); i++)
   {
-	NocHalLCD_WriteByte(0x00);
+	  NocHalLCD_DrawPixel(0x00);
   }
+
   CS_HIGH();
 }
 
@@ -145,99 +157,89 @@ void NocHalLCD_DisplayImage(const uint16_t *image)
   CS_HIGH();
 }
 
-void disp_locate (
-	int col,	/* Column position */
-	int row		/* Row position */
-)
+void NocHalLCD_SetOSDFont(const uint8_t *ucfont)
 {
-	if (FontS) {	/* Pixel position is calcurated with size of single byte font */
-		LocX = col * FontS[14];
-		LocY = row * FontS[15];
+	if (!memcmp(ucfont, "FONTX2", 5))
+	{
+		FontS = ucfont;
 	}
+
+	/* Font size: height, dot width and byte width */
+	font.height = ucfont[15];
+	font.width = ucfont[14];
+	font.size = ((font.width + 7) / 8) * font.height;
 }
 
-void disp_font_face (
-	const uint8_t *font	/* Pointer to the font structure in FONTX2 format */
-)
-{
-	if (!memcmp(font, "FONTX2", 5)) {
-		FontS = font;
-	}
-}
-
-void disp_font_color (
-	uint32_t color	/* (bg << 16) + fg */
-)
-{
-	ChrColor = color;
-}
-
-void disp_putc (
-	uint8_t chr		/* Character to be output (kanji chars are given in two disp_putc sequence) */
-)
+void NocHalLCD_WriteChar(uint16_t x, uint16_t y, uint8_t chr, uint32_t color) /* (bg << 16) + fg */
 {
 	const uint8_t *fnt;
-	uint8_t b, d;
-	uint16_t dchr;
-	uint32_t col;
-	int h, wc, w, wb, i, fofs;
 
+	uint32_t i, b, j;
 
-	if ((fnt = FontS) == 0) return;	/* Exit if no font registerd */
+	uint8_t fontStartAdrr = 17;
 
-	if (chr < 0x20) {	/* Processes the control character */
-		switch (chr) {
-		case '\n':	/* LF */
-			LocY += fnt[15];
-			/* follow next case */
-		case '\r':	/* CR */
-			LocX = 0;
-			return;
-		case '\b':	/* BS */
-			LocX -= fnt[14];
-			if (LocX < 0) LocX = 0;
-			return;
-		case '\f':	/* FF */
-			NocHalLCD_ClrScreen();
-			LocX = LocY = 0;
-			return;
+	if ((fnt = FontS) == 0)
+		return;	/* Exit if no font registerd */
+
+	/* Exit if current position is out of screen */
+	if (x >= DISP_XS || y >= DISP_YS)
+		return;
+
+	CS_LOW();	/* Select display module */
+	NocHalLCD_SetWindowAddr(x, x + font.width - 1, y, y + font.height - 1);
+
+	for(i = 0; i < font.height; i++)
+	{
+		b = fnt[(fontStartAdrr + chr * font.size) + i];	/* Start of bitmap + offset font height */
+		for(j = 0; j < font.width; j++)
+		{
+			if((b << j) & 0x80)
+			{
+				NocHalLCD_DrawPixel(color);   		// Color = blank
+			}
+			else
+			{
+				NocHalLCD_DrawPixel(color >> 16);   // Put color
+			}
 		}
 	}
 
-	/* Exit if current position is out of screen */
-	if ((unsigned int)LocX >= DISP_XS || (unsigned int)LocY >= DISP_YS) return;
-
-		dchr = chr;
-		fofs = 17;		/* Font area start address */
-
-	h = fnt[15]; w = fnt[14]; wb = (w + 7) / 8;	/* Font size: height, dot width and byte width */
-	fnt += fofs + dchr * wb * h;				/* Goto start of the bitmap */
-
-	if (LocX + w > DISP_XS) w = DISP_XS - LocX;	/* Clip right of font face at right edge */
-	if (LocY + h > DISP_YS) h = DISP_YS - LocY;	/* Clip bottom of font face at bottom edge */
-
-	CS_LOW();	/* Select display module */
-	NocHalLCD_SetWindowAddr(LocX, LocY, LocX + w - 1, LocY + h - 1);
-	d = 0;
-	do {
-		wc = w; b = i = 0;
-		do {
-			if (!b) {		/* Get next 8 dots */
-				b = 0x80;
-				d = fnt[i++];
-			}
-			col = ChrColor;
-			if (!(b & d)) col >>= 16;	/* Select color, BG or FG */
-			b >>= 1;		/* Next bit */
-			NocHalLCD_WriteByte(col);	/* Put the color */
-		} while (--wc);
-		fnt += wb;		/* Next raster */
-	} while (--h);
-	CS_HIGH();	/* Deselect display module */
-
-	LocX += w;	/* Update current position */
+	CS_HIGH();
 }
 
+void NocHalLCD_WriteString(uint16_t x, uint16_t y, const char* str, uint32_t color)
+{
+	x = x * font.width;
+	y = y * font.height;
+
+	CS_LOW();
+
+	while(*str)
+	{
+		if(x + font.width >= DISP_XS)
+		{
+			x = 0;
+			y += font.height;
+			if(y + font.height >= DISP_YS)
+			{
+				break;
+			}
+
+			if(*str == ' ')
+			{
+				// skip spaces in the beginning of the new line
+				str++;
+				continue;
+			}
+		}
+
+		NocHalLCD_WriteChar(x, y, *str, color);
+		x += font.width;
+		str++;
+	}
+
+	CS_HIGH();
+}
 /*static unsigned int tjd_input (	 Returns number of bytes read (zero on error)
 	JDEC* jd,			 Decompressor object
 	uint8_t* buff,		 Pointer to the read buffer (null to remove data)

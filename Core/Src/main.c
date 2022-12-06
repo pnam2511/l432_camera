@@ -76,15 +76,8 @@ FIL fil;	// file
 DIR dir;
 FRESULT fresult; 	// to store the result
 FILINFO Finfo;
-char string[128];	// to store data
 
-//BYTE Buff[4096]  __attribute__ ((aligned(2)));		/* Working buffer */
-
-UINT br, bw;		// file read/write count
-
-/*TJPEG variables decaration */
-JDEC jd;		/* Decompression object (70 bytes) */
-JRESULT rc;
+//BYTE Buff[4096]  __attribute__ ((aligned(4)));		/* Working buffer */
 
 /* USER CODE END 0 */
 
@@ -127,7 +120,8 @@ int main(void)
   NocHalLCD_Init();
   NocHalLCD_ClrScreen();
 
-  disp_putc("A");
+  //NocHalLCD_WriteChar(0, 0, 0, C_WHITE);
+  NocHalLCD_WriteString(0, 0, "Hello ong gia co don", C_WHITE);
 
   printf("Testing...\r\n");
 
@@ -147,14 +141,12 @@ int main(void)
 			if((fresult != FR_OK) || (Finfo.fname[0] == 0))
 			  break;
 
-	        sprintf(string, "%c%c%c%c %10d %s/%s\r\n",
+	        printf("%c%c%c%c %10d %s/%s\r\n",
 	          ((Finfo.fattrib & AM_DIR) ? 'D' : '-'),
 	          ((Finfo.fattrib & AM_RDO) ? 'R' : '-'),
 	          ((Finfo.fattrib & AM_SYS) ? 'S' : '-'),
 	          ((Finfo.fattrib & AM_HID) ? 'H' : '-'),
 	          (int)Finfo.fsize, "/", Finfo.fname);
-
-	        printf(string);
 		}
 	}
 
@@ -163,6 +155,10 @@ int main(void)
 		printf("File read OK!!\r\n");
 		load_jpg(&fil, Buff, sizeof Buff);
 	}*/
+  }
+  else
+  {
+	  printf("Error mounting SD card\r\n");
   }
 
   /* Unmount SDCARD */
