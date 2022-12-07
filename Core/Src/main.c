@@ -77,7 +77,7 @@ DIR dir;
 FRESULT fresult; 	// to store the result
 FILINFO Finfo;
 
-BYTE Buff[4096]  __attribute__ ((aligned(4)));		/* Working buffer */
+BYTE Buff[10240]  __attribute__ ((aligned(4)));		/* Working buffer */
 
 /* USER CODE END 0 */
 
@@ -150,7 +150,7 @@ int main(void)
 		}
 	}*/
 
-	if (f_open(&fil, "title.jpg", FA_READ) == FR_OK)
+	if (f_open(&fil, "title.jpg", FA_READ) == FR_OK) //Yosemi, small, Poppies
 	{
 		printf("File read OK!!\r\n");
 		load_jpg(&fil, Buff, sizeof Buff);

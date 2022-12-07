@@ -21,8 +21,8 @@ void load_jpg (
 );
 
 /* Dot screen size */
-#define DISP_XS	128
-#define DISP_YS	160
+#define DISP_XS	160
+#define DISP_YS	128
 
 /* Color values */
 #define RGB16(r,g,b) (((r << 8) & 0xF800)|((g << 3) & 0x07E0)|(b >> 3))

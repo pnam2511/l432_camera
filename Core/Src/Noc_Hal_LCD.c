@@ -89,7 +89,7 @@ void NocHalLCD_Init(void /* struct */)
   NocHalLCD_WriteByte(18);   // Back porch
 
   NocHalLCD_SendCommand(ST7735_MADCTL); // default
-  NocHalLCD_WriteByte(0x00);
+  NocHalLCD_WriteByte(0x60);
 
   NocHalLCD_SendCommand(ST7735_COLMOD); //16-bit color
   NocHalLCD_WriteByte(0x05);
@@ -98,13 +98,13 @@ void NocHalLCD_Init(void /* struct */)
   NocHalLCD_WriteByte(0x00);
   NocHalLCD_WriteByte(0x00);
   NocHalLCD_WriteByte(0x00);
-  NocHalLCD_WriteByte(0x7F);
+  NocHalLCD_WriteByte(0x9F);
 
   NocHalLCD_SendCommand(ST7735_RASET); //Row address set
   NocHalLCD_WriteByte(0x00);
   NocHalLCD_WriteByte(0x00);
   NocHalLCD_WriteByte(0x00);
-  NocHalLCD_WriteByte(0x9F);
+  NocHalLCD_WriteByte(0x7F);
 
   NocHalLCD_SendCommand(ST7735_NORON); //Normal display on
   HAL_Delay(100);
@@ -136,7 +136,7 @@ void NocHalLCD_SetWindowAddr(uint8_t xStart, uint8_t xEnd, uint8_t yStart, uint8
 
 void NocHalLCD_ClrScreen(void)
 {
-  NocHalLCD_SetWindowAddr(0, 128, 0, 160);
+  NocHalLCD_SetWindowAddr(0, 160, 0, 128);
 
   for(int i = 0; i < (160*128); i++)
   {
@@ -317,7 +317,7 @@ static int tjd_output (
 	UNUSED(jd);
 
 	/* Check user interrupt at left end */
-	if (!rect->left) return 0;	 /* Abort decompression */
+	//if (!rect->left) return 0;	 /* Abort decompression */
 
 	/* Put the rectangular into the display device */
 	NocHalLCD_DisplayImage(rect->left, rect->right, rect->top, rect->bottom, (uint16_t*)bitmap);
@@ -353,6 +353,6 @@ void load_jpg (
 	}
 	else
 	{
-		printf("Error: %d", rc);
+		printf("load_jpg Error: %d\r\n", rc);
 	}
 }
