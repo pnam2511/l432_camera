@@ -4,8 +4,8 @@
 #include "stm32l432xx.h"
 #include <stdio.h>
 #include <string.h>
-#include "ff.h"
-#include "tjpgd.h"
+#include "../../fatfs/ff.h"
+#include "../../jpegdecode/tjpgd.h"
 
 typedef struct
 {
@@ -43,8 +43,8 @@ extern const uint8_t Font5x7[];	/* Font image (FONTX2 format) */
 #define SPI_Cmd_Mode()  HAL_GPIO_WritePin(LCD_RS_GPIO_Port,LCD_RS_Pin,GPIO_PIN_RESET);
 #define SPI_Data_Mode() HAL_GPIO_WritePin(LCD_RS_GPIO_Port,LCD_RS_Pin,GPIO_PIN_SET);
 
-#define CS_LOW()        HAL_GPIO_WritePin(LCD_CS_GPIO_Port,LCD_CS_Pin,GPIO_PIN_RESET);
-#define CS_HIGH()       HAL_GPIO_WritePin(LCD_CS_GPIO_Port,LCD_CS_Pin,GPIO_PIN_SET);
+#define LCD_Select()        HAL_GPIO_WritePin(LCD_CS_GPIO_Port,LCD_CS_Pin,GPIO_PIN_RESET);
+#define LCD_UnSelect()       HAL_GPIO_WritePin(LCD_CS_GPIO_Port,LCD_CS_Pin,GPIO_PIN_SET);
 
 /* LCD Parameters define */
 #define BYTES_PER_PIXEL   2  //16bit depth 5-6-5 => 2 bytes = 1 pixel
@@ -65,7 +65,7 @@ extern const uint8_t Font5x7[];	/* Font image (FONTX2 format) */
 #define ST7735_NORON     0x13
 #define ST7735_DISPON    0x29
 
-void NocHalLCD_DrawPixel(uint16_t color);
+void NocHalLCD_DrawPixel(uint16_t x, uint16_t y, uint16_t color);
 void NocHalLCD_Init(void /* struct */);
 void NocHalLCD_SetWindowAddr(uint8_t xStart, uint8_t xEnd, uint8_t yStart, uint8_t yEnd);
 void NocHalLCD_ClrScreen(void);

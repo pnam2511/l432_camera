@@ -12,47 +12,32 @@ FontDef font;
 static void NocHalLCD_WriteByte(uint8_t ucdata)
 {
   SPI_Data_Mode();
-  CS_LOW();
-
   HAL_SPI_Transmit(&ST7735_SPI_PORT, &ucdata, sizeof(ucdata), HAL_MAX_DELAY);
-
-  CS_HIGH();
 }
 
+static void NocHalLCD_WriteData(uint8_t* buff, size_t buff_size)
+{
+  SPI_Data_Mode();
+  HAL_SPI_Transmit(&ST7735_SPI_PORT, buff, buff_size, HAL_MAX_DELAY);
+}
 static void NocHalLCD_SendCommand(uint8_t cmd)
 {
   SPI_Cmd_Mode();
-  CS_LOW();
-
   HAL_SPI_Transmit(&ST7735_SPI_PORT, &cmd, sizeof(cmd), HAL_MAX_DELAY);
-
-  CS_HIGH();
 }
 
-/*static uint8_t NocHalLCD_ReadByte(uint8_t addr)
+void NocHalLCD_DrawPixel(uint16_t x, uint16_t y, uint16_t color)
 {
-  uint8_t ucdata[2];
+  if((x >= DISP_XS) || (y >= DISP_YS))
+      return;
 
-  SPI_Cmd_Mode();
-  CS_LOW();
+  LCD_Select();
 
-  HAL_SPI_Transmit(&ST7735_SPI_PORT, &addr, sizeof(addr), HAL_MAX_DELAY);
-  HAL_SPI_Receive(&ST7735_SPI_PORT, ucdata, sizeof(ucdata), HAL_MAX_DELAY);
-
-  CS_HIGH();
-
-  return ucdata[1];  // ucdata[0] is dummy read
-}*/
-
-void NocHalLCD_DrawPixel(uint16_t color)
-{
-  SPI_Data_Mode();
-  CS_LOW();
-
+  NocHalLCD_SetWindowAddr(x, y, x+1, y+1);
   uint8_t ucdata[] = {color >> 8, color & 0xFF};
-  HAL_SPI_Transmit(&ST7735_SPI_PORT, ucdata, sizeof(ucdata), HAL_MAX_DELAY);
+  NocHalLCD_WriteData(ucdata, sizeof(ucdata));
 
-  CS_HIGH();
+  LCD_UnSelect();
 }
 
 void NocHalLCD_Init(void /* struct */)
@@ -63,7 +48,7 @@ void NocHalLCD_Init(void /* struct */)
 	   3. Implement HAL_SPI_Transmit/Receive to transfer config to ST7735
 	*/
 
-  CS_LOW();
+  LCD_Select();
 
   NocHalLCD_SendCommand(ST7735_SWRESET); //Software Reset
   HAL_Delay(150);
@@ -112,7 +97,7 @@ void NocHalLCD_Init(void /* struct */)
   NocHalLCD_SendCommand(ST7735_DISPON); //Display on
   HAL_Delay(150);
 
-  CS_HIGH();
+  LCD_UnSelect();
 
   NocHalLCD_SetOSDFont(Font5x7);	/* Select font */
 }
@@ -120,30 +105,30 @@ void NocHalLCD_Init(void /* struct */)
 void NocHalLCD_SetWindowAddr(uint8_t xStart, uint8_t xEnd, uint8_t yStart, uint8_t yEnd)
 {
   NocHalLCD_SendCommand(ST7735_CASET); // Column addr set
-  NocHalLCD_WriteByte(0x00);
-  NocHalLCD_WriteByte(xStart);
-  NocHalLCD_WriteByte(0x00);
-  NocHalLCD_WriteByte(xEnd);
+  uint8_t data[] = {0x00, xStart, 0x00, xEnd};
+  NocHalLCD_WriteData(data, sizeof(data));
 
   NocHalLCD_SendCommand(ST7735_RASET); // Row addr set
-  NocHalLCD_WriteByte(0x00);
-  NocHalLCD_WriteByte(yStart);
-  NocHalLCD_WriteByte(0x00);
-  NocHalLCD_WriteByte(yEnd);
+  data[1] = yStart;
+  data[3] = yEnd;
+  NocHalLCD_WriteData(data, sizeof(data));
 
   NocHalLCD_SendCommand(ST7735_RAMWR); // write to RAM
 }
 
 void NocHalLCD_ClrScreen(void)
 {
+  LCD_Select();
+
   NocHalLCD_SetWindowAddr(0, 160, 0, 128);
 
   for(int i = 0; i < (160*128); i++)
   {
-	  NocHalLCD_DrawPixel(0x00);
+	  uint8_t ucdata[] = {C_BLACK >> 8, C_BLACK & 0xFF};
+	  NocHalLCD_WriteData(ucdata, sizeof(ucdata));
   }
 
-  CS_HIGH();
+  LCD_UnSelect();
 }
 
 void NocHalLCD_DisplayImage(uint8_t left, uint8_t right, uint8_t top, uint8_t bottom, const uint16_t *image)
@@ -185,20 +170,21 @@ void NocHalLCD_DisplayImage(uint8_t left, uint8_t right, uint8_t top, uint8_t bo
 		right = MaskR;
 	}
 
-  CS_LOW();
+  LCD_Select();
 
   NocHalLCD_SetWindowAddr(left, right, top, bottom);
 
-	do {	/* Send image data */
+	do {	 /* Send image data */
 		xl = xc;
 		do {
 			pd = *image++;
-			NocHalLCD_DrawPixel(pd);
+			uint8_t ucdata[] = {pd >> 8, pd & 0xFF};
+			NocHalLCD_WriteData(ucdata, sizeof(ucdata));
 		} while (--xl);
 		image += xs;
 	} while (--yc);
 
-  CS_HIGH();
+  LCD_UnSelect();
 }
 
 void NocHalLCD_SetOSDFont(const uint8_t *ucfont)
@@ -229,7 +215,6 @@ void NocHalLCD_WriteChar(uint16_t x, uint16_t y, uint8_t chr, uint32_t color) /*
 	if (x >= DISP_XS || y >= DISP_YS)
 		return;
 
-	CS_LOW();	/* Select display module */
 	NocHalLCD_SetWindowAddr(x, x + font.width - 1, y, y + font.height - 1);
 
 	for(i = 0; i < font.height; i++)
@@ -239,16 +224,16 @@ void NocHalLCD_WriteChar(uint16_t x, uint16_t y, uint8_t chr, uint32_t color) /*
 		{
 			if((b << j) & 0x80)
 			{
-				NocHalLCD_DrawPixel(color);   		// Color = blank
+				uint8_t ucdata[] = {color >> 8, color & 0xFF};
+				NocHalLCD_WriteData(ucdata, sizeof(ucdata));
 			}
 			else
 			{
-				NocHalLCD_DrawPixel(color >> 16);   // Put color
+				uint8_t ucdata[] = {(color>>16) >> 8, (color>>16) & 0xFF};
+				NocHalLCD_WriteData(ucdata, sizeof(ucdata));
 			}
 		}
 	}
-
-	CS_HIGH();
 }
 
 void NocHalLCD_WriteString(uint16_t x, uint16_t y, const char* str, uint32_t color)
@@ -256,7 +241,7 @@ void NocHalLCD_WriteString(uint16_t x, uint16_t y, const char* str, uint32_t col
 	x = x * font.width;
 	y = y * font.height;
 
-	CS_LOW();
+	LCD_Select();
 
 	while(*str)
 	{
@@ -282,7 +267,7 @@ void NocHalLCD_WriteString(uint16_t x, uint16_t y, const char* str, uint32_t col
 		str++;
 	}
 
-	CS_HIGH();
+	LCD_UnSelect();
 }
 
 /* Returns number of bytes read (zero on error) */
@@ -294,11 +279,13 @@ static unsigned int tjd_input (
 {
 	UINT rb;
 	FIL *fp = (FIL*)jd->device;
+	FRESULT fresult;
 
 	if (buff)
 	{
 		/* Read nd bytes from the input stream */
-		f_read(fp, buff, nd, &rb);
+		fresult = f_read(fp, buff, nd, &rb);
+		printf("f_read result: %d, bytes read: %d\r\n", fresult, rb);
 		return rb;	 /* Returns number of bytes could be read */
 	}
 	else

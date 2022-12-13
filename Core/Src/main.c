@@ -18,13 +18,12 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "../../sdcard/sdcard.h"
 #include "Noc_Hal_LCD.h"
-#include "fatfs_sd.h"
-#include "tjpgd.h"
+#include "../../jpegdecode/tjpgd.h"
 #include "string.h"
 
 #include <stdio.h>
@@ -71,14 +70,37 @@ static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN 0 */
 
 /* FATFS variables decaration */
-FATFS fs; 	// file system
+FATFS fs;   // file system
 FIL fil;	// file
-DIR dir;
-FRESULT fresult; 	// to store the result
-FILINFO Finfo;
 
-BYTE Buff[10240]  __attribute__ ((aligned(4)));		/* Working buffer */
+BYTE Buff[4096]  __attribute__ ((aligned(4)));		/* Working buffer */
 
+int init() {
+    // unselect all SPI devices first
+    SDCARD_Unselect();
+    LCD_UnSelect();
+
+    // initialize SD-card as fast as possible, it glitches otherwise
+    // (this is important only if SPI bus is shared by multiple devices)
+    int code = SDCARD_Init();
+    if(code < 0) {
+        printf("SDCARD_Init() failed, code = %d\r\n", code);
+        return -1;
+    }
+
+    NocHalLCD_Init();
+    NocHalLCD_ClrScreen();
+
+    // mount the default drive
+    FRESULT res = f_mount(&fs, "", 0);
+    if(res != FR_OK) {
+        printf("f_mount() failed, res = %d\r\n", res);
+        return -2;
+    }
+    printf("f_mount() done!\r\n");
+
+    return 0;
+}
 /* USER CODE END 0 */
 
 /**
@@ -111,69 +133,45 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_SPI3_Init();
-  MX_FATFS_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
   RetargetInit(&huart2);
 
-  NocHalLCD_Init();
-  NocHalLCD_ClrScreen();
-
-  //NocHalLCD_WriteChar(0, 0, 0, C_WHITE);
-  NocHalLCD_WriteString(0, 0, "Hello ong gia co don", C_WHITE);
-
-  printf("Testing...\r\n");
-
-  // https://github.com/cbm80amiga/JpgDecoder_STM
-
-  if(f_mount(&fs, "/", 1) == FR_OK) //0: delay file system mounting until the 1st access to the volume; 1: immediately mount
-  {
-	printf("Mount SD Card sucessfully\r\n");
-
-/*	if(f_opendir(&dir, "/") == FR_OK)
-	{
-		//https://community.st.com/s/question/0D53W00000wzjSmSAI/fatfs-show-all-files
-		printf("Open directory...\r\n");
-		while(1)
-		{
-			fresult = f_readdir(&dir, &Finfo);
-			if((fresult != FR_OK) || (Finfo.fname[0] == 0))
-			  break;
-
-	        printf("%c%c%c%c %10d %s/%s\r\n",
-	          ((Finfo.fattrib & AM_DIR) ? 'D' : '-'),
-	          ((Finfo.fattrib & AM_RDO) ? 'R' : '-'),
-	          ((Finfo.fattrib & AM_SYS) ? 'S' : '-'),
-	          ((Finfo.fattrib & AM_HID) ? 'H' : '-'),
-	          (int)Finfo.fsize, "/", Finfo.fname);
-		}
-	}*/
-
-	if (f_open(&fil, "title.jpg", FA_READ) == FR_OK) //Yosemi, small, Poppies
-	{
-		printf("File read OK!!\r\n");
-		load_jpg(&fil, Buff, sizeof Buff);
-	}
-	else
-	{
-		printf("Reading Error!!\r\n");
-	}
-  }
-  else
-  {
-	  printf("Error mounting SD card\r\n");
-  }
-
-  /* Unmount SDCARD */
-  if(f_mount(NULL, "/", 1) == FR_OK)
-	printf("SD CARD UNMOUNTED successfully...\r\n");
-
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  int code = init();
+  if(code < 0) {
+    printf("init() failed with code %d, terminating.\r\n", code);
+    return 0;
+  }
+
+  NocHalLCD_WriteString(0, 0, "Hello ong gia co don", C_WHITE);
+
+  if (f_open(&fil, "Yosemi.jpg", FA_READ) == FR_OK) //Yosemi, small, Poppies
+  {
+	printf("File read OK!!\r\n");
+	load_jpg(&fil, Buff, sizeof Buff);
+  }
+  else
+  {
+	printf("Reading Error!!\r\n");
+  }
+
+  /* Close file */
+  FRESULT res = f_close(&fil);
+  if(res != FR_OK) {
+      printf("Close file failed, res = %d\r\n", res);
+  }
+
+  /* Unmount SDCARD */
+  res = f_mount(NULL, "", 0);
+  if(res != FR_OK) {
+      printf("Unmount() failed, res = %d\r\n", res);
+  }
+
   while (1)
   {
     /* USER CODE END WHILE */
@@ -382,12 +380,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SD_CS_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LCD_RS_Pin LCD_CS_Pin */
-  GPIO_InitStruct.Pin = LCD_RS_Pin|LCD_CS_Pin;
+  /*Configure GPIO pin : LCD_RS_Pin */
+  GPIO_InitStruct.Pin = LCD_RS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(LCD_RS_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LCD_CS_Pin */
+  GPIO_InitStruct.Pin = LCD_CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(LCD_CS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : KEY_ENTER_Pin */
   GPIO_InitStruct.Pin = KEY_ENTER_Pin;
