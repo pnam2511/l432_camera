@@ -2,14 +2,6 @@
 
 #include "sdcard.h"
 
-static void SDCARD_Select() {
-    HAL_GPIO_WritePin(SDCARD_CS_GPIO_Port, SDCARD_CS_Pin, GPIO_PIN_RESET);
-}
-
-void SDCARD_Unselect() {
-    HAL_GPIO_WritePin(SDCARD_CS_GPIO_Port, SDCARD_CS_Pin, GPIO_PIN_SET);
-}
-
 /*
 R1: 0abcdefg
      ||||||`- 1th bit (g): card is in idle state

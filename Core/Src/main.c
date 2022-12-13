@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include "retarget.h"
 
+#include "Noc_Lib_System.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -75,32 +77,6 @@ FIL fil;	// file
 
 BYTE Buff[4096]  __attribute__ ((aligned(4)));		/* Working buffer */
 
-int init() {
-    // unselect all SPI devices first
-    SDCARD_Unselect();
-    LCD_UnSelect();
-
-    // initialize SD-card as fast as possible, it glitches otherwise
-    // (this is important only if SPI bus is shared by multiple devices)
-    int code = SDCARD_Init();
-    if(code < 0) {
-        printf("SDCARD_Init() failed, code = %d\r\n", code);
-        return -1;
-    }
-
-    NocHalLCD_Init();
-    NocHalLCD_ClrScreen();
-
-    // mount the default drive
-    FRESULT res = f_mount(&fs, "", 0);
-    if(res != FR_OK) {
-        printf("f_mount() failed, res = %d\r\n", res);
-        return -2;
-    }
-    printf("f_mount() done!\r\n");
-
-    return 0;
-}
 /* USER CODE END 0 */
 
 /**
@@ -135,43 +111,20 @@ int main(void)
   MX_SPI3_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
   RetargetInit(&huart2);
+
+  nocSYSSTATUS status = NocLibSys_Init();
+  if(status != SYS_OK) {
+    printf("[E] NocLibSystem_Init() failed! status = %d\r\n", status);
+    return 0;
+  }
+
+  NocLibSys_ShowDirectory("/");
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  int code = init();
-  if(code < 0) {
-    printf("init() failed with code %d, terminating.\r\n", code);
-    return 0;
-  }
-
-  NocHalLCD_WriteString(0, 0, "Hello ong gia co don", C_WHITE);
-
-  if (f_open(&fil, "Yosemi.jpg", FA_READ) == FR_OK) //Yosemi, small, Poppies
-  {
-	printf("File read OK!!\r\n");
-	load_jpg(&fil, Buff, sizeof Buff);
-  }
-  else
-  {
-	printf("Reading Error!!\r\n");
-  }
-
-  /* Close file */
-  FRESULT res = f_close(&fil);
-  if(res != FR_OK) {
-      printf("Close file failed, res = %d\r\n", res);
-  }
-
-  /* Unmount SDCARD */
-  res = f_mount(NULL, "", 0);
-  if(res != FR_OK) {
-      printf("Unmount() failed, res = %d\r\n", res);
-  }
-
   while (1)
   {
     /* USER CODE END WHILE */

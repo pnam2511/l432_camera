@@ -11,7 +11,8 @@
 extern SPI_HandleTypeDef SDCARD_SPI_PORT;
 
 // call before initializing any SPI devicesB
-void SDCARD_Unselect();
+#define SDCARD_Select() HAL_GPIO_WritePin(SDCARD_CS_GPIO_Port, SDCARD_CS_Pin, GPIO_PIN_RESET)
+#define SDCARD_Unselect() HAL_GPIO_WritePin(SDCARD_CS_GPIO_Port, SDCARD_CS_Pin, GPIO_PIN_SET)
 
 // all procedures return 0 on success, < 0 on failure
 
