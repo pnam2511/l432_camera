@@ -5,7 +5,11 @@
 #define CameraI2C_Config hi2c1
 #define _NOC_HAL_CAMERA_
 
-uint8_t dataBuf[] = {0};
+extern uint8_t gCapture;
+extern uint8_t volatile gCurVsync;
+uint8_t gPrvVsync = LOW;
+
+uint8_t dataBuf[2] = {0, 0};
 
 static uint8_t Camera_I2C_Read(uint8_t regAddr, uint8_t *data)
 {
@@ -32,7 +36,7 @@ static uint8_t Camera_I2C_Write(uint8_t regAddr, uint8_t data)
   return ret;
 }
 
-static void Camera_frameControl(int hstart, int hstop, int vstart, int vstop)
+void NocHalCamera_frameControl(int hstart, int hstop, int vstart, int vstop)
 {
   Camera_I2C_Write(HSTART_REG, hstart >> 3);
   Camera_I2C_Write(HSTOP_REG, hstop >> 3);
@@ -43,14 +47,19 @@ static void Camera_frameControl(int hstart, int hstop, int vstart, int vstop)
   Camera_I2C_Write(VREF_REG, ((vstop & 0b11) << 2) | (vstart & 0b11));
 }
 
-void Camera_Config(void)
+nocCAMRESULT NochalCamera_Config(void)
 {
   // Register Reset
   Camera_I2C_Write(COM7_REG, 0x80);
   HAL_Delay(100);
 
-  Camera_I2C_Read(PID_REG, dataBuf);
-  Camera_I2C_Read(VER_REG, dataBuf);
+  Camera_I2C_Read(PID_REG, &dataBuf[0]);
+  Camera_I2C_Read(VER_REG, &dataBuf[1]);
+
+  if((dataBuf[0] != 0x00) || (dataBuf[1] != 0x00))
+    return CAM_ERR;
+  if((dataBuf[0] != 0x76) || (dataBuf[1] != 0x73))
+    return CAM_DIFF;
 
   Camera_I2C_Write(CLKRC_REG, 0x01); 			// Divided Pclock by 2
   Camera_I2C_Write(COM11_REG, 0b1000 | 0b10); 	// enable auto 50/60Hz detect + exposure timing can be less...
@@ -69,10 +78,52 @@ void Camera_Config(void)
   Camera_I2C_Write(SCALING_PCLK_DIV, 0xF2); 	// Clock divider on, divided by 4
   Camera_I2C_Write(SCALING_PCLK_DELAY, 0x02); 	// scaling pclk delay = 2clocks
 
-  Camera_frameControl(196, 52, 8, 488);		// no clue why horizontal needs such strange values, vertical works ok
+  NocHalCamera_frameControl(196, 52, 8, 488);		// no clue why horizontal needs such strange values, vertical works ok
 
   Camera_I2C_Write(0xB0, 0x84); 			// no clue what this is but it's most important for colors
   Camera_I2C_Write(COM8_REG, 0xE7);			// AWB (Auto White Balance) on
   Camera_I2C_Write(AWBCTR0_REG, 0x9F);		// Simple AWB
 
+  return CAM_OK;
+}
+
+bool NocHalCamera_isStartCaputureCondition(void)
+{
+  if(gCapture == TRUE)
+  {
+    if(gPrvVsync != gCurVsync) /* Detect transition on VSync */
+    {
+      gPrvVsync = gCurVsync;
+      if(gPrvVsync == HIGH)     /* Falling edge on Vsync signal a frame */
+      {
+        return TRUE;
+      }
+      else
+      {
+        return FALSE;
+      }
+    }
+  }
+  else
+  {
+    return FALSE;
+  }
+}
+
+void NocHalCamera_oneshotMode(void)
+{
+  if(gCapture == FALSE)
+  {
+    return;
+  }
+  else if((gCapture == TRUE) && (NocHalCamera_isStartCaputureCondition() == TRUE))
+  {
+    if(gCurVsync == HIGH)
+    {
+      HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_4);
+      gCapture = FALSE;
+      return;
+    }
+    HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_4);
+  }
 }

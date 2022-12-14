@@ -30,6 +30,16 @@
 #define SCALING_PCLK_DIV     0x73
 #define SCALING_PCLK_DELAY   0xA2
 
-void Camera_Config(void);
+typedef enum
+{
+    CAM_OK = 0,     /* Camera init successfully */
+    CAM_ERR,        /* Error on conection, check I2C bus */
+    CAM_DIFF,       /* Another type of camera is plugged in, please re-define accordingly */
+} nocCAMRESULT;
+
+void NocHalCamera_frameControl(int hstart, int hstop, int vstart, int vstop);
+nocCAMRESULT NochalCamera_Config(void);
+bool NocHalCamera_isStartCaputureCondition(void);
+void NocHalCamera_oneshotMode(void);
 
 #endif /* _NOC_HAL_CAMERA_H_ */

@@ -41,6 +41,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+uint8_t volatile gCapture = FALSE;
+uint8_t volatile gCurVsync;
+
 uint32_t previousMillis = 0;
 uint32_t currentMillis = 0;
 /* USER CODE END PV */
@@ -52,11 +55,6 @@ uint32_t currentMillis = 0;
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t start_capture = 0;
-uint8_t oneFrame = FALSE;
-int numberData;
-
-uint8_t capturedData[38600];
 
 /* USER CODE END 0 */
 
@@ -193,7 +191,7 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
-
+  gCurVsync = HAL_GPIO_ReadPin(CAM_VSYNC_GPIO_Port, CAM_VSYNC_Pin); /* Update Current VSync state every 1ms */
   /* USER CODE END SysTick_IRQn 1 */
 }
 
@@ -238,14 +236,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   currentMillis = HAL_GetTick();
   if((GPIO_Pin == KEY_ENTER_Pin) && (currentMillis - previousMillis > 10))
   {
-	  start_capture = TRUE;
+	  gCapture = TRUE;
 	  previousMillis = currentMillis;
-	  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-  }
-  else if((GPIO_Pin == CAM_PLCK_Pin) && (oneFrame == TRUE))
-  {
-	  capturedData[numberData] = (GPIOA_IDR & 0xFF);
-	  numberData++;
   }
 }
 /* USER CODE END 1 */

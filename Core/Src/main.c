@@ -67,11 +67,6 @@ static void MX_SPI3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-extern uint8_t start_capture;
-extern uint8_t oneFrame;
-
-volatile uint8_t curVSync;
-volatile uint8_t prvVSync = LOW;
 
 // BYTE Buff[4096]  __attribute__ ((aligned(4)));		/* Working buffer */
 
@@ -108,39 +103,22 @@ int main(void)
   MX_I2C1_Init();
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
-  Camera_Config();
-
   nocSYSSTATUS status = NocLibSys_Init();
   if(status != SYS_OK) {
     printf("[E] NocLibSystem_Init() failed! status = %d\r\n", status);
     return 0;
   }
+
+  nocCAMRESULT res = NochalCamera_Config();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    if(start_capture != 0)
-    {
-    	curVSync = HAL_GPIO_ReadPin(CAM_VSYNC_GPIO_Port, CAM_VSYNC_Pin);
-    	if(prvVSync != curVSync)
-    	{
-    		if(prvVSync == HIGH)
-    		{
-    			oneFrame = TRUE;
-    		}
-    		else if((prvVSync == LOW) && (oneFrame == TRUE))
-    		{
-    			start_capture = 0;
-    		}
-    		prvVSync = curVSync;
-    	}
-    }
-    if((start_capture == FALSE) && (oneFrame == TRUE))
-    {
-		HAL_Delay(1000);
-    }
+    NocHalCamera_oneshotMode();
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
