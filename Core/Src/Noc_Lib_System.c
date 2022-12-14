@@ -5,6 +5,8 @@
 
 nocSYSSTATUS NocLibSys_Init(void)
 {
+  FATFS fs;
+
   // unselect all SPI devices first
   SDCARD_Unselect();
   LCD_UnSelect();
@@ -20,10 +22,10 @@ nocSYSSTATUS NocLibSys_Init(void)
 
   NocHalLCD_Init();
   NocHalLCD_ClrScreen();
-  printf("LCD_Init() done!\r\n");
+  NocHalLCD_WriteString(0, 0, "LCD_Init() done!", C_WHITE);
 
   // mount the default drive
-  FRESULT res = f_mount(&fs, "", 0);
+  FRESULT res = f_mount(&fs, "/", 0);
   if(res != FR_OK) {
       printf("f_mount() failed, res = %d\r\n", res);
       return F_MOUNT_ERR;
@@ -49,7 +51,7 @@ void NocLibSys_ShowDirectory(char *path)
   {
     while(1)
     {
-      res = f_readdir(&dir, finfo);                 /* Read a directory item */
+      res = f_readdir(&dir, &finfo);                 /* Read a directory item */
       if((res != FR_OK) || (finfo.fname[0] == 0))   /* Break on error or end of directory */
         break;
       
@@ -64,27 +66,3 @@ void NocLibSys_ShowDirectory(char *path)
     }
   }
 }
-
-  NocHalLCD_WriteString(0, 0, "Hello ong gia co don", C_WHITE);
-
-  if (f_open(&fil, "Yosemi.jpg", FA_READ) == FR_OK) //Yosemi, small, Poppies
-  {
-	printf("File read OK!!\r\n");
-	load_jpg(&fil, Buff, sizeof Buff);
-  }
-  else
-  {
-	printf("Reading Error!!\r\n");
-  }
-
-  /* Close file */
-  FRESULT res = f_close(&fil);
-  if(res != FR_OK) {
-      printf("Close file failed, res = %d\r\n", res);
-  }
-
-  /* Unmount SDCARD */
-  res = f_mount(NULL, "", 0);
-  if(res != FR_OK) {
-      printf("Unmount() failed, res = %d\r\n", res);
-  }

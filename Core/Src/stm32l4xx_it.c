@@ -53,6 +53,10 @@ uint32_t currentMillis = 0;
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 uint8_t start_capture = 0;
+uint8_t oneFrame = FALSE;
+int numberData;
+
+uint8_t capturedData[38600];
 
 /* USER CODE END 0 */
 
@@ -214,14 +218,34 @@ void EXTI9_5_IRQHandler(void)
   /* USER CODE END EXTI9_5_IRQn 1 */
 }
 
+/**
+  * @brief This function handles EXTI line[15:10] interrupts.
+  */
+void EXTI15_10_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI15_10_IRQn 0 */
+
+  /* USER CODE END EXTI15_10_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(CAM_PLCK_Pin);
+  /* USER CODE BEGIN EXTI15_10_IRQn 1 */
+
+  /* USER CODE END EXTI15_10_IRQn 1 */
+}
+
 /* USER CODE BEGIN 1 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   currentMillis = HAL_GetTick();
   if((GPIO_Pin == KEY_ENTER_Pin) && (currentMillis - previousMillis > 10))
   {
-      start_capture = TRUE;
-      previousMillis = currentMillis;
+	  start_capture = TRUE;
+	  previousMillis = currentMillis;
+	  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+  }
+  else if((GPIO_Pin == CAM_PLCK_Pin) && (oneFrame == TRUE))
+  {
+	  capturedData[numberData] = (GPIOA_IDR & 0xFF);
+	  numberData++;
   }
 }
 /* USER CODE END 1 */

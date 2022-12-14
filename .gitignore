@@ -1,8 +1,8 @@
 # Prerequisites
 *.d
-*.mk
 *.xml
 *.prefs
+*.bak
 
 # Object files
 *.o
@@ -40,7 +40,7 @@
 *.x86_64
 *.hex
 .cproject
-.msproject
+.mxproject
 .project
 
 # Debug files
@@ -58,5 +58,4 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-Debug/
 .settings/

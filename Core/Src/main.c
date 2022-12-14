@@ -21,13 +21,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "Noc_Hal_Camera.h"
 #include "../../sdcard/sdcard.h"
 #include "Noc_Hal_LCD.h"
 #include "../../jpegdecode/tjpgd.h"
 #include "string.h"
 
 #include <stdio.h>
-#include "retarget.h"
 
 #include "Noc_Lib_System.h"
 
@@ -52,10 +52,8 @@ I2C_HandleTypeDef hi2c1;
 
 SPI_HandleTypeDef hspi3;
 
-UART_HandleTypeDef huart2;
-
 /* USER CODE BEGIN PV */
-
+I2C_HandleTypeDef hi2c1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -63,19 +61,19 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SPI3_Init(void);
-static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+extern uint8_t start_capture;
+extern uint8_t oneFrame;
 
-/* FATFS variables decaration */
-FATFS fs;   // file system
-FIL fil;	// file
+volatile uint8_t curVSync;
+volatile uint8_t prvVSync = LOW;
 
-BYTE Buff[4096]  __attribute__ ((aligned(4)));		/* Working buffer */
+// BYTE Buff[4096]  __attribute__ ((aligned(4)));		/* Working buffer */
 
 /* USER CODE END 0 */
 
@@ -109,24 +107,40 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_SPI3_Init();
-  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  RetargetInit(&huart2);
+  Camera_Config();
 
   nocSYSSTATUS status = NocLibSys_Init();
   if(status != SYS_OK) {
     printf("[E] NocLibSystem_Init() failed! status = %d\r\n", status);
     return 0;
   }
-
-  NocLibSys_ShowDirectory("/");
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    if(start_capture != 0)
+    {
+    	curVSync = HAL_GPIO_ReadPin(CAM_VSYNC_GPIO_Port, CAM_VSYNC_Pin);
+    	if(prvVSync != curVSync)
+    	{
+    		if(prvVSync == HIGH)
+    		{
+    			oneFrame = TRUE;
+    		}
+    		else if((prvVSync == LOW) && (oneFrame == TRUE))
+    		{
+    			start_capture = 0;
+    		}
+    		prvVSync = curVSync;
+    	}
+    }
+    if((start_capture == FALSE) && (oneFrame == TRUE))
+    {
+		HAL_Delay(1000);
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -181,6 +195,7 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+  HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_PLLCLK, RCC_MCODIV_8);
 }
 
 /**
@@ -272,41 +287,6 @@ static void MX_SPI3_Init(void)
 }
 
 /**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART2_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART2_Init 0 */
-
-  /* USER CODE END USART2_Init 0 */
-
-  /* USER CODE BEGIN USART2_Init 1 */
-
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART2_Init 2 */
-
-  /* USER CODE END USART2_Init 2 */
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -333,12 +313,42 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SD_CS_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : D0_Pin D1_Pin D2_Pin D3_Pin
+                           D4_Pin D5_Pin D6_Pin D7_Pin
+                           CAM_VSYNC_Pin */
+  GPIO_InitStruct.Pin = D0_Pin|D1_Pin|D2_Pin|D3_Pin
+                          |D4_Pin|D5_Pin|D6_Pin|D7_Pin
+                          |CAM_VSYNC_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : CAM_HREF_Pin */
+  GPIO_InitStruct.Pin = CAM_HREF_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(CAM_HREF_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin : LCD_RS_Pin */
   GPIO_InitStruct.Pin = LCD_RS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(LCD_RS_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : CAM_XCLK_Pin */
+  GPIO_InitStruct.Pin = CAM_XCLK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF0_MCO;
+  HAL_GPIO_Init(CAM_XCLK_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : CAM_PLCK_Pin */
+  GPIO_InitStruct.Pin = CAM_PLCK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(CAM_PLCK_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LCD_CS_Pin */
   GPIO_InitStruct.Pin = LCD_CS_Pin;
@@ -354,8 +364,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(KEY_ENTER_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
 
 }
 
