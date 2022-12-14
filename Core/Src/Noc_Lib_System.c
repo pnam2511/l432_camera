@@ -36,7 +36,7 @@ nocSYSSTATUS NocLibSys_Init(void)
 }
 
 /* Modified version of scan_files in fafts/ff.c */
-void NocLibSys_ShowDirectory(char *path)
+/*void NocLibSys_ShowDirectory(char *path)
 {
   FRESULT res;
   DIR dir;
@@ -46,13 +46,13 @@ void NocLibSys_ShowDirectory(char *path)
 
   NocHalLCD_WriteString(0, 0, "Opening directory", C_WHITE);
 
-  res = f_opendir(&dir, path);                      /* Open directory */
+  res = f_opendir(&dir, path);                       Open directory
   if(res == FR_OK)
   {
     while(1)
     {
-      res = f_readdir(&dir, &finfo);                 /* Read a directory item */
-      if((res != FR_OK) || (finfo.fname[0] == 0))   /* Break on error or end of directory */
+      res = f_readdir(&dir, &finfo);                  Read a directory item
+      if((res != FR_OK) || (finfo.fname[0] == 0))    Break on error or end of directory
         break;
       
       sprintf(str, "%c%c%c%c %s/%s",
@@ -65,4 +65,4 @@ void NocLibSys_ShowDirectory(char *path)
       NocHalLCD_WriteString(0, i++, str, C_WHITE);
     }
   }
-}
+}*/

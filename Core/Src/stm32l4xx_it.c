@@ -46,6 +46,10 @@ uint8_t volatile gCurVsync;
 
 uint32_t previousMillis = 0;
 uint32_t currentMillis = 0;
+
+int frameCount;
+uint32_t dataCount = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,7 +63,7 @@ uint32_t currentMillis = 0;
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-
+extern TIM_HandleTypeDef htim1;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -217,17 +221,17 @@ void EXTI9_5_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles EXTI line[15:10] interrupts.
+  * @brief This function handles TIM1 update interrupt and TIM16 global interrupt.
   */
-void EXTI15_10_IRQHandler(void)
+void TIM1_UP_TIM16_IRQHandler(void)
 {
-  /* USER CODE BEGIN EXTI15_10_IRQn 0 */
+  /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 0 */
 
-  /* USER CODE END EXTI15_10_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(CAM_PLCK_Pin);
-  /* USER CODE BEGIN EXTI15_10_IRQn 1 */
+  /* USER CODE END TIM1_UP_TIM16_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 1 */
 
-  /* USER CODE END EXTI15_10_IRQn 1 */
+  /* USER CODE END TIM1_UP_TIM16_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
@@ -236,8 +240,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   currentMillis = HAL_GetTick();
   if((GPIO_Pin == KEY_ENTER_Pin) && (currentMillis - previousMillis > 10))
   {
-	  gCapture = TRUE;
-	  previousMillis = currentMillis;
+    gCapture = TRUE;
+    previousMillis = currentMillis;
+  }
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if((gCapture == TRUE) && (frameCount != 0))
+  {
+      dataCount++;
   }
 }
 /* USER CODE END 1 */

@@ -34,12 +34,12 @@ typedef enum
 {
     CAM_OK = 0,     /* Camera init successfully */
     CAM_ERR,        /* Error on conection, check I2C bus */
-    CAM_DIFF,       /* Another type of camera is plugged in, please re-define accordingly */
+    CAM_NOT_SUPPORT,       /* Another type of camera is plugged in, please re-define accordingly */
 } nocCAMRESULT;
 
 void NocHalCamera_frameControl(int hstart, int hstop, int vstart, int vstop);
 nocCAMRESULT NochalCamera_Config(void);
-bool NocHalCamera_isStartCaputureCondition(void);
+uint8_t NocHalCamera_isStartCaputureCondition(void);
 void NocHalCamera_oneshotMode(void);
 
 #endif /* _NOC_HAL_CAMERA_H_ */

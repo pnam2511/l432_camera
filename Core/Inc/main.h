@@ -91,7 +91,6 @@ void Error_Handler(void);
 #define CAM_XCLK_GPIO_Port GPIOA
 #define CAM_PLCK_Pin GPIO_PIN_11
 #define CAM_PLCK_GPIO_Port GPIOA
-#define CAM_PLCK_EXTI_IRQn EXTI15_10_IRQn
 #define CAM_VSYNC_Pin GPIO_PIN_12
 #define CAM_VSYNC_GPIO_Port GPIOA
 #define LCD_CS_Pin GPIO_PIN_6

@@ -13,6 +13,6 @@ typedef enum {
 } nocSYSSTATUS;
 
 nocSYSSTATUS NocLibSys_Init(void);
-void NocLibSys_ShowDirectory(char *path);
+// void NocLibSys_ShowDirectory(char *path);
 
 #endif /* _NOC_LIB_SYSTEM_H_ */

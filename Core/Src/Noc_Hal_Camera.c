@@ -5,6 +5,10 @@
 #define CameraI2C_Config hi2c1
 #define _NOC_HAL_CAMERA_
 
+extern TIM_HandleTypeDef htim1;
+
+extern int frameCount;
+
 extern uint8_t gCapture;
 extern uint8_t volatile gCurVsync;
 uint8_t gPrvVsync = LOW;
@@ -53,13 +57,13 @@ nocCAMRESULT NochalCamera_Config(void)
   Camera_I2C_Write(COM7_REG, 0x80);
   HAL_Delay(100);
 
-  Camera_I2C_Read(PID_REG, &dataBuf[0]);
-  Camera_I2C_Read(VER_REG, &dataBuf[1]);
+  Camera_I2C_Read(PID_REG, dataBuf);
+  Camera_I2C_Read(VER_REG, dataBuf);
 
-  if((dataBuf[0] != 0x00) || (dataBuf[1] != 0x00))
+  if(dataBuf[0] == 0x00)
     return CAM_ERR;
-  if((dataBuf[0] != 0x76) || (dataBuf[1] != 0x73))
-    return CAM_DIFF;
+  if(dataBuf[0] != 0x73)
+    return CAM_NOT_SUPPORT;
 
   Camera_I2C_Write(CLKRC_REG, 0x01); 			// Divided Pclock by 2
   Camera_I2C_Write(COM11_REG, 0b1000 | 0b10); 	// enable auto 50/60Hz detect + exposure timing can be less...
@@ -87,7 +91,7 @@ nocCAMRESULT NochalCamera_Config(void)
   return CAM_OK;
 }
 
-bool NocHalCamera_isStartCaputureCondition(void)
+uint8_t NocHalCamera_isStartCaputureCondition(void)
 {
   if(gCapture == TRUE)
   {
@@ -104,10 +108,7 @@ bool NocHalCamera_isStartCaputureCondition(void)
       }
     }
   }
-  else
-  {
-    return FALSE;
-  }
+  return FALSE;
 }
 
 void NocHalCamera_oneshotMode(void)
@@ -118,12 +119,11 @@ void NocHalCamera_oneshotMode(void)
   }
   else if((gCapture == TRUE) && (NocHalCamera_isStartCaputureCondition() == TRUE))
   {
+    frameCount++;
     if(gCurVsync == HIGH)
     {
-      HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_4);
       gCapture = FALSE;
       return;
     }
-    HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_4);
   }
 }
