@@ -41,8 +41,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-uint8_t volatile gCapture = FALSE;
-uint8_t volatile gCurVsync;
+uint8_t volatile g_KeyPressed = FALSE;
+extern uint8_t g_StartCapture;
 
 uint32_t previousMillis = 0;
 uint32_t currentMillis = 0;
@@ -195,7 +195,11 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
-  gCurVsync = HAL_GPIO_ReadPin(CAM_VSYNC_GPIO_Port, CAM_VSYNC_Pin); /* Update Current VSync state every 1ms */
+  if((g_StartCapture == TRUE) && (g_CurrentVsync == HIGH))
+  {
+      g_StartCapture = FALSE;
+      g_KeyPressed = FALSE;
+  }
   /* USER CODE END SysTick_IRQn 1 */
 }
 
@@ -221,17 +225,17 @@ void EXTI9_5_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles TIM1 update interrupt and TIM16 global interrupt.
+  * @brief This function handles TIM1 capture compare interrupt.
   */
-void TIM1_UP_TIM16_IRQHandler(void)
+void TIM1_CC_IRQHandler(void)
 {
-  /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 0 */
+  /* USER CODE BEGIN TIM1_CC_IRQn 0 */
 
-  /* USER CODE END TIM1_UP_TIM16_IRQn 0 */
+  /* USER CODE END TIM1_CC_IRQn 0 */
   HAL_TIM_IRQHandler(&htim1);
-  /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 1 */
+  /* USER CODE BEGIN TIM1_CC_IRQn 1 */
 
-  /* USER CODE END TIM1_UP_TIM16_IRQn 1 */
+  /* USER CODE END TIM1_CC_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
@@ -240,16 +244,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   currentMillis = HAL_GetTick();
   if((GPIO_Pin == KEY_ENTER_Pin) && (currentMillis - previousMillis > 10))
   {
-    gCapture = TRUE;
+    g_KeyPressed = TRUE;
     previousMillis = currentMillis;
+    dataCount = 0;
   }
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-  if((gCapture == TRUE) && (frameCount != 0))
+  if((g_KeyPressed == TRUE) && (g_StartCapture == TRUE))
   {
       dataCount++;
   }
+
 }
 /* USER CODE END 1 */

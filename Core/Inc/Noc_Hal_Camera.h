@@ -39,7 +39,6 @@ typedef enum
 
 void NocHalCamera_frameControl(int hstart, int hstop, int vstart, int vstop);
 nocCAMRESULT NochalCamera_Config(void);
-uint8_t NocHalCamera_isStartCaputureCondition(void);
 void NocHalCamera_oneshotMode(void);
 
 #endif /* _NOC_HAL_CAMERA_H_ */

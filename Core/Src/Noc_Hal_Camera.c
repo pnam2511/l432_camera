@@ -9,9 +9,9 @@ extern TIM_HandleTypeDef htim1;
 
 extern int frameCount;
 
-extern uint8_t gCapture;
-extern uint8_t volatile gCurVsync;
-uint8_t gPrvVsync = LOW;
+extern uint8_t g_KeyPressed;
+uint8_t volatile g_PreviousVsync = LOW;
+uint8_t g_StartCapture = FALSE;
 
 uint8_t dataBuf[2] = {0, 0};
 
@@ -91,39 +91,15 @@ nocCAMRESULT NochalCamera_Config(void)
   return CAM_OK;
 }
 
-uint8_t NocHalCamera_isStartCaputureCondition(void)
-{
-  if(gCapture == TRUE)
-  {
-    if(gPrvVsync != gCurVsync) /* Detect transition on VSync */
-    {
-      gPrvVsync = gCurVsync;
-      if(gPrvVsync == HIGH)     /* Falling edge on Vsync signal a frame */
-      {
-        return TRUE;
-      }
-      else
-      {
-        return FALSE;
-      }
-    }
-  }
-  return FALSE;
-}
-
 void NocHalCamera_oneshotMode(void)
 {
-  if(gCapture == FALSE)
+  if(g_KeyPressed == TRUE)
   {
-    return;
-  }
-  else if((gCapture == TRUE) && (NocHalCamera_isStartCaputureCondition() == TRUE))
-  {
-    frameCount++;
-    if(gCurVsync == HIGH)
-    {
-      gCapture = FALSE;
-      return;
-    }
+      if(g_CurrentVsync != g_PreviousVsync)
+      {
+	  if(g_PreviousVsync == HIGH)
+	      g_StartCapture = TRUE;
+	  g_PreviousVsync = g_CurrentVsync;
+      }
   }
 }

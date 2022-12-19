@@ -107,16 +107,13 @@ int main(void)
   MX_SPI3_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim1);
-  HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_4);
-
   nocSYSSTATUS status = NocLibSys_Init();
-  if(status != SYS_OK) {
-    printf("[E] NocLibSystem_Init() failed! status = %d\r\n", status);
-    return 0;
-  }
-
   nocCAMRESULT res = NochalCamera_Config();
+
+  HAL_TIM_Base_Start_IT(&htim1);
+  __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_CC4);
+  TIM_CCxChannelCmd(htim1.Instance, TIM_CHANNEL_4, TIM_CCx_ENABLE);
+  // HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_4);
 
   /* USER CODE END 2 */
 
@@ -291,12 +288,12 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
+  htim1.Init.Prescaler = 79;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 65535;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
-  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
   {
     Error_Handler();
