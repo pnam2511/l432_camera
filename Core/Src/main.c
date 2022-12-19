@@ -53,6 +53,7 @@ I2C_HandleTypeDef hi2c1;
 SPI_HandleTypeDef hspi3;
 
 TIM_HandleTypeDef htim1;
+DMA_HandleTypeDef hdma_tim1_ch4_trig_com;
 
 /* USER CODE BEGIN PV */
 I2C_HandleTypeDef hi2c1;
@@ -61,6 +62,7 @@ I2C_HandleTypeDef hi2c1;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_TIM1_Init(void);
@@ -103,6 +105,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_I2C1_Init();
   MX_SPI3_Init();
   MX_TIM1_Init();
@@ -110,10 +113,13 @@ int main(void)
   nocSYSSTATUS status = NocLibSys_Init();
   nocCAMRESULT res = NochalCamera_Config();
 
-  HAL_TIM_Base_Start_IT(&htim1);
-  __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_CC4);
+  if (HAL_DMA_Start_IT(htmi1.hdma[TIM_DMA_ID_CC4], GPIOA_IDR, (uint32_t)&aDST_Buffer, BUFFER_SIZE) != HAL_OK)
+  {
+    /* Transfer Error */
+    Error_Handler();
+  }
+  __HAL_TIM_ENABLE_DMA(&htim1, TIM_IT_CC4);
   TIM_CCxChannelCmd(htim1.Instance, TIM_CHANNEL_4, TIM_CCx_ENABLE);
-  // HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_4);
 
   /* USER CODE END 2 */
 
@@ -323,8 +329,26 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN TIM1_Init 2 */
+  htmi1.hdma[TIM_DMA_ID_CC4]->XferHalfCpltCallback = HalfTransferComplete;
+  htmi1.hdma[TIM_DMA_ID_CC4]->XferCpltCallback = TransferComplete;
 
   /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
 
 }
 

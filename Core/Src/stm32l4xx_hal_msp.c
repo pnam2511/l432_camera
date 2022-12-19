@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
+extern DMA_HandleTypeDef hdma_tim1_ch4_trig_com;
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN TD */
@@ -248,9 +249,26 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
     GPIO_InitStruct.Alternate = GPIO_AF1_TIM1;
     HAL_GPIO_Init(CAM_PLCK_GPIO_Port, &GPIO_InitStruct);
 
-    /* TIM1 interrupt Init */
-    HAL_NVIC_SetPriority(TIM1_CC_IRQn, 1, 0);
-    HAL_NVIC_EnableIRQ(TIM1_CC_IRQn);
+    /* TIM1 DMA Init */
+    /* TIM1_CH4_TRIG_COM Init */
+    hdma_tim1_ch4_trig_com.Instance = DMA1_Channel4;
+    hdma_tim1_ch4_trig_com.Init.Request = DMA_REQUEST_7;
+    hdma_tim1_ch4_trig_com.Init.Direction = DMA_PERIPH_TO_MEMORY;
+    hdma_tim1_ch4_trig_com.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_tim1_ch4_trig_com.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_tim1_ch4_trig_com.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_tim1_ch4_trig_com.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_tim1_ch4_trig_com.Init.Mode = DMA_CIRCULAR;
+    hdma_tim1_ch4_trig_com.Init.Priority = DMA_PRIORITY_HIGH;
+    if (HAL_DMA_Init(&hdma_tim1_ch4_trig_com) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    /* Several peripheral DMA handle pointers point to the same DMA handle.
+     Be aware that there is only one channel to perform all the requested DMAs. */
+    __HAL_LINKDMA(htim_base,hdma[TIM_DMA_ID_CC4],hdma_tim1_ch4_trig_com);
+
   /* USER CODE BEGIN TIM1_MspInit 1 */
 
   /* USER CODE END TIM1_MspInit 1 */
@@ -279,8 +297,10 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
     */
     HAL_GPIO_DeInit(CAM_PLCK_GPIO_Port, CAM_PLCK_Pin);
 
-    /* TIM1 interrupt DeInit */
-    HAL_NVIC_DisableIRQ(TIM1_CC_IRQn);
+    /* TIM1 DMA DeInit */
+    HAL_DMA_DeInit(htim_base->hdma[TIM_DMA_ID_CC4]);
+    HAL_DMA_DeInit(htim_base->hdma[TIM_DMA_ID_TRIGGER]);
+    HAL_DMA_DeInit(htim_base->hdma[TIM_DMA_ID_COMMUTATION]);
   /* USER CODE BEGIN TIM1_MspDeInit 1 */
 
   /* USER CODE END TIM1_MspDeInit 1 */
