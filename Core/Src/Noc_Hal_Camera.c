@@ -95,11 +95,14 @@ void NocHalCamera_oneshotMode(void)
 {
   if(g_KeyPressed == TRUE)
   {
-      if(g_CurrentVsync != g_PreviousVsync)
+    if(g_CurrentVsync != g_PreviousVsync)
+    {
+      if(g_PreviousVsync == HIGH)
       {
-	  if(g_PreviousVsync == HIGH)
-	      g_StartCapture = TRUE;
-	  g_PreviousVsync = g_CurrentVsync;
+        g_StartCapture = TRUE;
+        __HAL_TIM_ENABLE(&htim1);
       }
+      g_PreviousVsync = g_CurrentVsync;
+    }
   }
 }

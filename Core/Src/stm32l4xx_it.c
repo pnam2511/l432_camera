@@ -195,11 +195,7 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
-  if((g_StartCapture == TRUE) && (g_CurrentVsync == HIGH))
-  {
-      g_StartCapture = FALSE;
-      g_KeyPressed = FALSE;
-  }
+
   /* USER CODE END SysTick_IRQn 1 */
 }
 
@@ -232,9 +228,21 @@ void TIM1_CC_IRQHandler(void)
   /* USER CODE BEGIN TIM1_CC_IRQn 0 */
 
   /* USER CODE END TIM1_CC_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim1);
+  // HAL_TIM_IRQHandler(&htim1);
   /* USER CODE BEGIN TIM1_CC_IRQn 1 */
+  uint32_t temp_value;
 
+  if((TIM1->SR & TIM_SR_CC4IF) != 0) // Check interrupt flag
+  {
+    /* Reading CCR4 clear CC4IF interrupt flag */
+    temp_value = TIM1->CCR4;
+    HAL_TIM_IC_CaptureCallback(&htmi1);
+  }
+
+  if((TIM1->SR & TIM_SR_UIF) != 0)    // Check for overflow flag
+  {
+    TIM1->SR &= ~TIM_SR_UIF;          // Clear UIF flag to prevent re-entering
+  }
   /* USER CODE END TIM1_CC_IRQn 1 */
 }
 
@@ -252,10 +260,17 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-  if((g_KeyPressed == TRUE) && (g_StartCapture == TRUE))
+  if(g_StartCapture)
   {
+    if(g_CurrentVsync == LOW)
+    {
       dataCount++;
+    }
+    else
+    {
+      g_StartCapture = FALSE; /* One Frame Done!~ */
+      g_KeyPressed = FALSE;   /* Reset Key Press State */
+    }
   }
-
 }
 /* USER CODE END 1 */
