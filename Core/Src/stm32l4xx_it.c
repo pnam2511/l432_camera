@@ -42,13 +42,9 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
 uint8_t volatile g_KeyPressed = FALSE;
-extern uint8_t g_StartCapture;
 
 uint32_t previousMillis = 0;
 uint32_t currentMillis = 0;
-
-int frameCount;
-uint32_t dataCount = 0;
 
 /* USER CODE END PV */
 
@@ -195,11 +191,7 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
-  if((g_StartCapture == TRUE) && (g_CurrentVsync == HIGH))
-  {
-      g_StartCapture = FALSE;
-      g_KeyPressed = FALSE;
-  }
+
   /* USER CODE END SysTick_IRQn 1 */
 }
 
@@ -218,9 +210,9 @@ void DMA1_Channel4_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel4_IRQn 0 */
 
   /* USER CODE END DMA1_Channel4_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_tim1_ch4_trig_com);
+  // HAL_DMA_IRQHandler(&hdma_tim1_ch4_trig_com);
   /* USER CODE BEGIN DMA1_Channel4_IRQn 1 */
-
+  Optim_HAL_DMA_IRQHandler(&hdma_tim1_ch4_trig_com);
   /* USER CODE END DMA1_Channel4_IRQn 1 */
 }
 
@@ -250,12 +242,42 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   }
 }
 
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+/**
+  * @brief  Handles DMA interrupt request with otimized latency.
+  *            - not checking all flag cases
+  * @param  hdma: pointer to a DMA_HandleTypeDef structure that contains
+  *               the configuration information for the specified DMA Channel.
+  * @retval None
+  */
+void Optim_HAL_DMA_IRQHandler(DMA_HandleTypeDef *hdma)
 {
-  if((g_KeyPressed == TRUE) && (g_StartCapture == TRUE))
+  /* Half Transfer Complete Interrupt management ******************************/
+  if ( (DMAx->ISR & DMA_FLAG_HT) != RESET)
   {
-      dataCount++;
+    DMAx->IFCR |= DMA_FLAG_HT;
+
+    /* Change DMA peripheral state */
+    hdma->State = HAL_DMA_STATE_READY_HALF;
+
+    /* Half transfer callback */
+    hdma->XferHalfCpltCallback(hdma);
   }
 
+  /* Transfer Complete Interrupt management ***********************************/
+  if ( (DMAx->ISR & DMA_FLAG_TC) != RESET)
+  {
+    DMAx->IFCR |= DMA_FLAG_TC;
+    /* Update error code */
+    hdma->ErrorCode |= HAL_DMA_ERROR_NONE;
+
+    /* Change the DMA state */
+    hdma->State = HAL_DMA_STATE_READY;
+
+    /* Process Unlocked */
+    __HAL_UNLOCK(hdma);
+
+    /* Transfer complete callback */
+    hdma->XferCpltCallback(hdma);
+  }
 }
 /* USER CODE END 1 */

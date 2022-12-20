@@ -72,7 +72,7 @@ static void MX_TIM1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+static uint8_t imgBuff[BUFFER_SIZE] = {0};
 // BYTE Buff[4096]  __attribute__ ((aligned(4)));		/* Working buffer */
 
 /* USER CODE END 0 */
@@ -113,7 +113,7 @@ int main(void)
   nocSYSSTATUS status = NocLibSys_Init();
   nocCAMRESULT res = NochalCamera_Config();
 
-  if (HAL_DMA_Start_IT(htmi1.hdma[TIM_DMA_ID_CC4], GPIOA_IDR, (uint32_t)&aDST_Buffer, BUFFER_SIZE) != HAL_OK)
+  if (HAL_DMA_Start_IT(htim1.hdma[TIM_DMA_ID_CC4], GPIOA_IDR, (uint32_t)&imgBuff, BUFFER_SIZE) != HAL_OK)
   {
     /* Transfer Error */
     Error_Handler();
@@ -127,7 +127,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    NocHalCamera_oneshotMode();
+    // NocHalCamera_oneshotMode();
 
     /* USER CODE END WHILE */
 
@@ -329,8 +329,9 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN TIM1_Init 2 */
-  htmi1.hdma[TIM_DMA_ID_CC4]->XferHalfCpltCallback = HalfTransferComplete;
-  htmi1.hdma[TIM_DMA_ID_CC4]->XferCpltCallback = TransferComplete;
+  htim1.hdma[TIM_DMA_ID_CC4]->XferHalfCpltCallback = HalfTransferComplete;
+  htim1.hdma[TIM_DMA_ID_CC4]->XferCpltCallback = TransferComplete;
+  htim1.hdma[TIM_DMA_ID_CC4]->XferErrorCallback = TransferError;
 
   /* USER CODE END TIM1_Init 2 */
 
@@ -430,7 +431,63 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+  * @brief  DMA conversion Half complete callback
+  * @note   This function is executed when the transfer half complete interrupt
+  *         is generated
+  * @retval None
+  */
+static void HalfTransferComplete(DMA_HandleTypeDef *DmaHandle)
+{
+  int position = 0;
+  LastITHalfComplete = 1;
+	
+  /* Copy the first part of the received buffer */
+  for (int i = 0; i < HALF_BUFFER_SIZE; i++)
+  {
+    aFull_Buffer[FullDataIndex] = aDST_Buffer[i+position];
+    FullDataIndex++;
+  }
 
+}
+
+/**
+  * @brief  DMA conversion complete callback
+  * @note   This function is executed when the transfer complete interrupt
+  *         is generated
+  * @retval None
+  */
+static void TransferComplete(DMA_HandleTypeDef *DmaHandle)
+{
+  int position = HALF_BUFFER_SIZE;
+  LastITHalfComplete = 0;
+
+  /* Copy the second part of the received buffer */
+  for (int i = 0; i < HALF_BUFFER_SIZE; i++)
+  {
+    aFull_Buffer[FullDataIndex] = aDST_Buffer[i+position];
+    FullDataIndex++;
+  }
+
+}
+
+/**
+  * @brief  DMA conversion error callback
+  * @note   This function is executed when the transfer error interrupt
+  *         is generated during DMA transfer
+  * @retval None
+  */
+static void TransferError(DMA_HandleTypeDef *DmaHandle)
+{
+  /* show Error on LCD */
+  bLCDGlass_KeyPressed = 1;  /* disable scrolling */
+  BSP_LCD_GLASS_Clear();
+  BSP_LCD_GLASS_DisplayString(LCD_String_Error);
+
+  /* setting LED_RED if error */
+  BSP_LED_On(LED_RED);
+
+}
 /* USER CODE END 4 */
 
 /**

@@ -50,8 +50,9 @@ extern I2C_HandleTypeDef hi2c1;
 #define LOW		0
 
 #define GPIOA_IDR               (*((uint32_t volatile *) 0x48000010))
-#define g_CurrentVsync HAL_GPIO_ReadPin(CAM_VSYNC_GPIO_Port, CAM_VSYNC_Pin)
+#define g_CurrentVsync  HAL_GPIO_ReadPin(CAM_VSYNC_GPIO_Port, CAM_VSYNC_Pin)
 
+#define BUFFER_SIZE     19200
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
